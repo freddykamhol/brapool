@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum WaescheKategorie {
+  HOSE
+  POLO
+  SWEATJACKE
+  SOFTSHELLJACKE
+  HARDSHELLJACKE
+}
+
+enum WaescheStatus {
+  EINGELAGERT
+  UMLAUF
+  DEFEKT_REPARATUR
+  DEFEKT_ENTSORGT
+}
+
+enum LogSeverity {
+  ROT
+  GELB
+  GRUEN
+  INFO
+}
+
+enum LogType {
+  AUSGABE_SUMMARY
+  UMLAUF_WARNUNG
+  EINLAGERUNG_SUMMARY
+  MANUELL
+}
+
+model Waesche {
+  systemId           Int @id
+  barcode            String @unique
+
+  kategorie          WaescheKategorie
+  groesse            String
+  status             WaescheStatus @default(EINGELAGERT)
+
+  bemerkung          String?
+
+  eingelagertAm      DateTime?
+  ausgetragenVon     String?
+  ausgegebenAn       String?
+  ausgabeDatum       DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  logs               WaescheLog[]
+}
+
+model WaescheLog {
+  id                 String @id @default(cuid())
+  type               LogType
+  severity           LogSeverity @default(INFO)
+  message            String
+
+  waescheSystemId    Int?
+  waesche            Waesche? @relation(fields: [waescheSystemId], references: [systemId])
+
+  createdAt          DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([severity])
+  @@index([type])
+}
+
+model User {
+  id        String   @id @default(cuid())
+
+  vorname   String
+  nachname String
+  userId   String   @unique
+  email    String   @unique
+
+  // bcrypt hash
+  password String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([userId])
+}
