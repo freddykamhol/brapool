@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "NODE_ENV=production node server.js",
-    "lint": "eslint",
-    "create-user": "node --experimental-strip-types scripts/create-user.ts"
+    "lint": "eslint"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.4.1",
