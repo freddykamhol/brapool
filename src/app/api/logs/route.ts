@@ -38,7 +38,9 @@ async function sendUmlaufWarningMails(items: WarnItem[]) {
     select: { email: true, vorname: true },
     where: { email: { not: "" } },
   });
-  const recipients = users.map((u) => u.email.trim()).filter(Boolean);
+  const recipients: string[] = users
+    .map((u: { email: string }) => u.email.trim())
+    .filter((email): email is string => email.length > 0);
   if (!recipients.length) return;
 
   const transporter = nodemailer.createTransport({
