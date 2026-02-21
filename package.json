@@ -2,9 +2,13 @@
   "name": "brapool",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.20.0",
+    "npm": ">=10 <11"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "prisma generate && next build --webpack",
     "start": "NODE_ENV=production node server.js",
     "lint": "eslint"
   },
@@ -20,6 +24,7 @@
     "next": "16.1.6",
     "nodemailer": "^8.0.1",
     "pg": "^8.18.0",
+    "prisma": "^7.4.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -32,7 +37,6 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "prisma": "^7.4.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

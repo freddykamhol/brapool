@@ -16,6 +16,15 @@ type WarnItem = {
   updatedAt: Date;
 };
 
+type MailRecipient = {
+  email: string;
+  vorname: string | null;
+};
+
+type ExistingWarnLog = {
+  waescheSystemId: number | null;
+};
+
 function getSmtp() {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT ?? "587");
@@ -34,12 +43,12 @@ async function sendUmlaufWarningMails(items: WarnItem[]) {
     return;
   }
 
-  const users = await prisma.user.findMany({
+  const users = (await prisma.user.findMany({
     select: { email: true, vorname: true },
     where: { email: { not: "" } },
-  });
+  })) as MailRecipient[];
   const recipients: string[] = users
-    .map((u) => u.email.trim())
+    .map((u: MailRecipient) => u.email.trim())
     .filter((email: string) => email.length > 0);
   if (!recipients.length) return;
 
@@ -106,14 +115,18 @@ async function ensureUmlaufWarnings() {
 
   if (!candidates.length) return;
 
-  const existing = await prisma.waescheLog.findMany({
+  const existing = (await prisma.waescheLog.findMany({
     where: {
       type: "UMLAUF_WARNUNG",
       waescheSystemId: { in: candidates.map((c) => c.systemId) },
     },
     select: { waescheSystemId: true },
-  });
-  const existingIds = new Set(existing.map((e) => e.waescheSystemId).filter((x): x is number => typeof x === "number"));
+  })) as ExistingWarnLog[];
+  const existingIds = new Set(
+    existing
+      .map((e: ExistingWarnLog) => e.waescheSystemId)
+      .filter((x): x is number => typeof x === "number"),
+  );
   const fresh = candidates.filter((c) => !existingIds.has(c.systemId));
   if (!fresh.length) return;
 
