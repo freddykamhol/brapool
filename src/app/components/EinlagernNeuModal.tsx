@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import ModalShell from "@/app/components/ModalShell";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
 
@@ -27,8 +28,8 @@ export default function EinlagernNeuModal(props: {
   const [bulkGroesse, setBulkGroesse] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // reset when reopened
-  useMemo(() => {
+  // reset when reopened or new missing-barcode set arrives
+  useEffect(() => {
     if (!open) return;
     setRows(barcodes.map((b) => ({ barcode: b, selected: true, kategorie: "", groesse: "" })));
     setBulkKategorie("");
@@ -95,26 +96,27 @@ export default function EinlagernNeuModal(props: {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-4xl rounded-2xl border border-white/10 bg-zinc-950 p-6">
+    <ModalShell open={open} onClose={onClose} panelClassName="max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur">
         <div className="flex items-center justify-between">
           <div className="text-lg font-semibold">Neue Wäsche anlegen</div>
-          <button className="rounded-xl border border-white/10 px-3 py-1.5 hover:bg-white/5" onClick={onClose}>
+          <button
+            className="rounded-xl border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={onClose}
+          >
             Schließen
           </button>
         </div>
 
         {/* Bulk edit */}
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
           <div className="text-sm font-medium">Bulk edit</div>
           <div className="mt-3 grid grid-cols-12 gap-3 items-end">
             <div className="col-span-12 md:col-span-4">
-              <div className="text-xs opacity-70 mb-1">Kategorie</div>
+              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">Kategorie</div>
               <select
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
                 value={bulkKategorie}
-                onChange={(e) => setBulkKategorie(e.target.value as any)}
+                onChange={(e) => setBulkKategorie(e.target.value as WaescheKategorie | "")}
               >
                 <option value="">—</option>
                 <option value="HOSE">Hose</option>
@@ -126,9 +128,9 @@ export default function EinlagernNeuModal(props: {
             </div>
 
             <div className="col-span-12 md:col-span-4">
-              <div className="text-xs opacity-70 mb-1">Größe</div>
+              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">Größe</div>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
                 value={bulkGroesse}
                 onChange={(e) => setBulkGroesse(e.target.value)}
                 placeholder="z.B. L / 52 / XL"
@@ -137,7 +139,7 @@ export default function EinlagernNeuModal(props: {
 
             <div className="col-span-12 md:col-span-4 flex gap-3">
               <button
-                className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-2 hover:bg-white/15"
+                className="w-full rounded-xl border border-slate-300 bg-slate-100 px-4 py-2 hover:bg-slate-200 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
                 onClick={applyBulk}
               >
                 Auf Auswahl anwenden
@@ -153,7 +155,7 @@ export default function EinlagernNeuModal(props: {
                 />
                 Alle auswählen
               </label>
-              <div className="text-xs opacity-70">
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">
                 Nur ausgewählte Barcodes übernehmen Bulk-Werte.
               </div>
             </div>
@@ -161,8 +163,8 @@ export default function EinlagernNeuModal(props: {
         </div>
 
         {/* Rows */}
-        <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
-          <div className="grid grid-cols-12 gap-0 border-b border-white/10 bg-white/5 px-4 py-3 text-xs opacity-80">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+          <div className="grid grid-cols-12 gap-0 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
             <div className="col-span-1">✓</div>
             <div className="col-span-5">Barcode</div>
             <div className="col-span-3">Kategorie</div>
@@ -171,7 +173,7 @@ export default function EinlagernNeuModal(props: {
 
           <div className="max-h-[360px] overflow-y-auto">
             {rows.map((r, idx) => (
-              <div key={r.barcode} className="grid grid-cols-12 gap-0 border-b border-white/5 px-4 py-3 text-sm">
+              <div key={r.barcode} className="grid grid-cols-12 gap-0 border-b border-slate-100 px-4 py-3 text-sm dark:border-white/5">
                 <div className="col-span-1 flex items-center">
                   <input
                     type="checkbox"
@@ -186,10 +188,14 @@ export default function EinlagernNeuModal(props: {
 
                 <div className="col-span-3">
                   <select
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
                     value={r.kategorie}
                     onChange={(e) =>
-                      setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, kategorie: e.target.value as any } : x)))
+                      setRows((prev) =>
+                        prev.map((x, i) =>
+                          i === idx ? { ...x, kategorie: e.target.value as WaescheKategorie | "" } : x
+                        )
+                      )
                     }
                     disabled={!r.selected}
                   >
@@ -204,7 +210,7 @@ export default function EinlagernNeuModal(props: {
 
                 <div className="col-span-3">
                   <input
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
                     value={r.groesse}
                     onChange={(e) =>
                       setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, groesse: e.target.value } : x)))
@@ -219,18 +225,20 @@ export default function EinlagernNeuModal(props: {
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/5" onClick={onClose}>
+          <button
+            className="rounded-xl border border-slate-300 px-4 py-2 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={onClose}
+          >
             Abbrechen
           </button>
           <button
-            className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 hover:bg-white/15 disabled:opacity-50"
+            className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2 hover:bg-slate-200 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
             onClick={submit}
             disabled={!canSave || saving}
           >
             {saving ? "Anlegen..." : "Anlegen & Einlagern"}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

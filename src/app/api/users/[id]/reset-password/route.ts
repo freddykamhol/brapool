@@ -3,6 +3,7 @@ import { prisma } from "../../../../lib/prisma";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import nodemailer from "nodemailer";
+import { getSessionFromRequest } from "../../../../lib/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,23 +23,46 @@ function getSmtp() {
     throw new Error("SMTP ENV fehlt: SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM");
   }
 
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error("SMTP_PORT ist ungültig.");
+  }
+
   return { host, port, user, pass, from };
 }
 
+function formatMailError(e: unknown) {
+  const err = e as { code?: string; message?: string };
+  const code = err?.code ?? "";
+  const msg = err?.message ?? "Reset+Mail fehlgeschlagen";
+  if (code === "ETIMEDOUT" || code === "ECONNREFUSED" || code === "ESOCKET") {
+    return "SMTP-Verbindung fehlgeschlagen (Timeout/Connection). Bitte SMTP_HOST/SMTP_PORT prüfen.";
+  }
+  return msg;
+}
+
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  let rollbackId: string | null = null;
+  let rollbackPasswordHash: string | null = null;
+
   try {
+    if (!(await getSessionFromRequest(_req))) {
+      return NextResponse.json({ ok: false, error: "Nicht autorisiert." }, { status: 401 });
+    }
+
     const { id } = await ctx.params;
     if (!id) return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
 
     const u = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, vorname: true, nachname: true, userId: true },
+      select: { id: true, email: true, vorname: true, nachname: true, userId: true, password: true },
     });
 
     if (!u) return NextResponse.json({ ok: false, error: "User nicht gefunden." }, { status: 404 });
 
     const pw = makePassword();
     const hash = await bcrypt.hash(pw, 10);
+    rollbackId = u.id;
+    rollbackPasswordHash = u.password;
 
     await prisma.user.update({ where: { id }, data: { password: hash } });
 
@@ -52,10 +76,13 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       auth: { user: smtp.user, pass: smtp.pass },
       // Helps with many providers for STARTTLS
       requireTLS: smtp.port === 587,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      tls: {
+        servername: smtp.host,
+      },
     });
-
-    // Quick connectivity check (gives real error reason in server console)
-    await transporter.verify();
 
     const subject = "BRApool – Neues Passwort";
     const text = [
@@ -79,8 +106,20 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     });
 
     return NextResponse.json({ ok: true, messageId: info.messageId });
-  } catch (e) {
-    const msg = String((e as any)?.message ?? "Reset+Mail fehlgeschlagen");
+  } catch (e: unknown) {
+    if (rollbackId && rollbackPasswordHash) {
+      try {
+        // updateMany avoids throwing P2025 when record vanished meanwhile
+        await prisma.user.updateMany({
+          where: { id: rollbackId },
+          data: { password: rollbackPasswordHash },
+        });
+      } catch (rollbackError) {
+        console.error("[reset-password] rollback failed", rollbackError);
+      }
+    }
+
+    const msg = formatMailError(e);
     console.error("[reset-password]", msg, e);
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }

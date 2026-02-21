@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { matchIncomingBarcodes, normalizeBarcodeForMatch } from "../../../lib/barcode";
 
 function normalizeBarcodes(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   const set = new Set<string>();
   for (const raw of input) {
-    const s = typeof raw === "string" ? raw.trim() : "";
+    const s = normalizeBarcodeForMatch(typeof raw === "string" ? raw : "");
     if (!s) continue;
     set.add(s);
   }
@@ -29,20 +30,18 @@ export async function POST(req: Request) {
     );
   }
 
-  // Welche existieren?
-  const existing = await prisma.waesche.findMany({
-    where: { barcode: { in: barcodes } },
+  // Welche existieren? (auch match auf führende 0 bei numerischen Codes)
+  const allRows = await prisma.waesche.findMany({
     select: { barcode: true, kategorie: true, groesse: true },
   });
-
-  const existingSet = new Set(existing.map((e) => e.barcode));
-  const missing = barcodes.filter((b) => !existingSet.has(b));
+  const { matched, missing } = matchIncomingBarcodes(barcodes, allRows);
+  const matchedBarcodes = matched.map((m) => m.barcode);
 
   const now = new Date();
 
   // Vorhandene: auf UMLAUF setzen + Felder schreiben
   const updated = await prisma.waesche.updateMany({
-    where: { barcode: { in: barcodes.filter((b) => existingSet.has(b)) } },
+    where: { barcode: { in: matchedBarcodes } },
     data: {
       status: "UMLAUF",
       ausgetragenVon,
@@ -54,7 +53,7 @@ export async function POST(req: Request) {
   // Log: rot (Summary mit Mengen)
   if (updated.count > 0) {
     const counts = new Map<string, number>();
-    for (const e of existing) {
+    for (const e of matched) {
       const key = `${e.kategorie} ${e.groesse}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }

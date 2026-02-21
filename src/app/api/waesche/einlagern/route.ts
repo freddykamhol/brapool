@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { normalizeBarcodeForMatch, matchIncomingBarcodes } from "../../../lib/barcode";
 
 function normalizeBarcodes(input: string[]): string[] {
   const set = new Set<string>();
   for (const raw of input) {
-    const s = (raw ?? "").trim();
+    const s = normalizeBarcodeForMatch(raw ?? "");
     if (!s) continue;
     set.add(s);
   }
@@ -20,18 +21,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Keine Barcodes übergeben." }, { status: 400 });
   }
 
-  const existing = await prisma.waesche.findMany({
-    where: { barcode: { in: barcodes } },
+  const allRows = await prisma.waesche.findMany({
     select: { barcode: true },
   });
-
-  const existingSet = new Set(existing.map((e) => e.barcode));
-  const missing = barcodes.filter((b) => !existingSet.has(b));
+  const { matched, missing } = matchIncomingBarcodes(barcodes, allRows);
+  const matchedBarcodes = matched.map((m) => m.barcode);
 
   // vorhandene: auf eingelagert setzen
   const now = new Date();
   const updated = await prisma.waesche.updateMany({
-    where: { barcode: { in: barcodes.filter((b) => existingSet.has(b)) } },
+    where: { barcode: { in: matchedBarcodes } },
     data: {
       status: "EINGELAGERT",
       eingelagertAm: now,

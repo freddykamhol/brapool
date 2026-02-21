@@ -11,6 +11,18 @@ type NewItem = {
   groesse: string;
 };
 
+type IncomingItem = Partial<NewItem> & { [key: string]: unknown };
+
+function isKategorie(value: unknown): value is WaescheKategorie {
+  return (
+    value === "HOSE" ||
+    value === "POLO" ||
+    value === "SWEATJACKE" ||
+    value === "SOFTSHELLJACKE" ||
+    value === "HARDSHELLJACKE"
+  );
+}
+
 function norm(s: unknown) {
   return typeof s === "string" ? s.trim() : "";
 }
@@ -28,15 +40,18 @@ async function nextSystemId(tx: Prisma.TransactionClient): Promise<number> {
 // POST { items: [{barcode,kategorie,groesse}] }
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const items: NewItem[] = Array.isArray(body?.items) ? body.items : [];
+  const items: IncomingItem[] = Array.isArray(body?.items) ? body.items : [];
 
-  const cleaned: NewItem[] = items
-    .map((x: any) => ({
+  const mapped: Array<{ barcode: string; kategorie: unknown; groesse: string }> = items
+    .map((x: IncomingItem) => ({
       barcode: norm(x?.barcode),
       kategorie: x?.kategorie,
       groesse: norm(x?.groesse),
-    }))
-    .filter((x) => x.barcode && x.kategorie && x.groesse);
+    }));
+
+  const cleaned: NewItem[] = mapped
+    .filter((x) => Boolean(x.barcode && x.kategorie && x.groesse))
+    .filter((x): x is NewItem => isKategorie(x.kategorie));
 
   if (!cleaned.length) {
     return NextResponse.json({ ok: false, error: "Keine gültigen neuen Einträge übergeben." }, { status: 400 });
@@ -93,7 +108,10 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, ...created });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Bulk-Anlage fehlgeschlagen." }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Bulk-Anlage fehlgeschlagen." },
+      { status: 500 },
+    );
   }
 }

@@ -1,16 +1,20 @@
 import "./globals.css";
-import ThemeRegistry from "./theme-registry";
 
 export const metadata = {
   title: "BRApool",
   description: "BRApool",
+  icons: {
+    icon: "/logo-mark.svg",
+    shortcut: "/logo-mark.svg",
+    apple: "/logo-mark.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" suppressHydrationWarning>
+    <html lang="de" className="dark">
       <body>
-        <ThemeRegistry>{children}</ThemeRegistry>
+        {children}
       </body>
     </html>
   );

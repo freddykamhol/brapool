@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { getSessionFromRequest } from "../../../lib/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function jsonError(message: string, status = 400, details?: any) {
+function jsonError(message: string, status = 400, details?: unknown) {
   return NextResponse.json(
     { ok: false, error: message, ...(details !== undefined ? { details } : {}) },
     { status }
@@ -13,6 +14,10 @@ function jsonError(message: string, status = 400, details?: any) {
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    if (!(await getSessionFromRequest(req))) {
+      return jsonError("Nicht autorisiert.", 401);
+    }
+
     const { id } = await ctx.params;
     if (!id) return jsonError("Missing id", 400);
 
@@ -34,14 +39,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     });
 
     return NextResponse.json({ ok: true });
-  } catch (e) {
-    const msg = String((e as any)?.message ?? "");
+  } catch (e: unknown) {
+    const msg = String(e instanceof Error ? e.message : "");
 
     // Prisma unique constraint
     if (msg.includes("Unique constraint") || msg.includes("UNIQUE")) {
       return jsonError("UserID oder Email existiert bereits.", 409);
     }
 
-    return jsonError("PATCH user fehlgeschlagen", 500, msg);
+    return jsonError("PATCH user fehlgeschlagen", 500, msg || undefined);
   }
 }

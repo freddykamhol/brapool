@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import ModalShell from "@/app/components/ModalShell";
 
 type CsvRow = Record<string, string>;
 
@@ -119,7 +120,7 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
     try {
       const p = parseCsv(rawText, delimiter);
       return { headers: p.headers, rows: p.rows };
-    } catch (e: any) {
+    } catch {
       return { headers: [], rows: [] as CsvRow[] };
     }
   }, [rawText, delimiter]);
@@ -145,8 +146,8 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
     const file = files[0];
     try {
       await readFile(file);
-    } catch (e: any) {
-      setError(e?.message ?? "Datei konnte nicht gelesen werden.");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Datei konnte nicht gelesen werden.");
     }
   }
 
@@ -160,8 +161,8 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
         alert(`CSV geladen: ${parsed.rows.length} Zeilen (Import-API folgt).`);
       }
       onClose();
-    } catch (e: any) {
-      setError(e?.message ?? "Import fehlgeschlagen.");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Import fehlgeschlagen.");
     } finally {
       setImporting(false);
     }
@@ -170,16 +171,17 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-
-      <div className="relative w-full max-w-5xl rounded-2xl border border-white/10 bg-zinc-950 p-6">
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      panelClassName="max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur p-6"
+    >
         <div className="flex items-center justify-between">
           <div>
             <div className="text-lg font-semibold">CSV Import</div>
-            <div className="text-sm opacity-70">Datei reinziehen oder auswählen — rechts siehst du sofort eine Vorschau.</div>
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">Datei reinziehen oder auswählen — rechts siehst du sofort eine Vorschau.</div>
           </div>
-          <button className="rounded-xl border border-white/10 px-3 py-1.5 hover:bg-white/5" onClick={onClose}>
+          <button className="rounded-xl border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5" onClick={onClose}>
             Schließen
           </button>
         </div>
@@ -191,8 +193,8 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
               className={
                 "rounded-2xl border p-5 transition-colors " +
                 (dragOver
-                  ? "border-white/20 bg-white/10"
-                  : "border-white/10 bg-white/5 hover:bg-white/10")
+                  ? "border-slate-300 bg-slate-100 dark:border-white/20 dark:bg-white/10"
+                  : "border-slate-200 bg-slate-50 hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10")
               }
               onDragOver={(e) => {
                 e.preventDefault();
@@ -207,11 +209,11 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
               }}
             >
               <div className="text-sm font-medium">Datei auswählen</div>
-              <div className="mt-2 text-sm opacity-70">Zieh eine .csv hier rein — oder nutz den Button.</div>
+              <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Zieh eine .csv hier rein — oder nutz den Button.</div>
 
               <div className="mt-4 flex gap-2">
                 <button
-                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm hover:bg-white/15"
+                  className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
                   onClick={() => inputRef.current?.click()}
                 >
                   Datei auswählen
@@ -219,7 +221,7 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
 
                 <button
                   className={
-                    "rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5 " +
+                    "rounded-xl border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5 " +
                     (!rawText ? "opacity-50 cursor-not-allowed" : "")
                   }
                   disabled={!rawText}
@@ -241,19 +243,19 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
                 />
               </div>
 
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium">Erkannt</div>
-                  <div className="text-xs opacity-70">{fileName || "—"}</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">{fileName || "—"}</div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-12 gap-3 items-end">
                   <div className="col-span-12 md:col-span-6">
-                    <div className="text-xs opacity-70 mb-1">Trennzeichen</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Trennzeichen</div>
                     <select
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
                       value={delimiter}
-                      onChange={(e) => setDelimiter(e.target.value as any)}
+                      onChange={(e) => setDelimiter(e.target.value as "," | ";" | "\t")}
                       disabled={!rawText}
                     >
                       <option value=",">Komma (,)</option>
@@ -263,8 +265,8 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
                   </div>
 
                   <div className="col-span-12 md:col-span-6">
-                    <div className="text-xs opacity-70 mb-1">Zeilen</div>
-                    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Zeilen</div>
+                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5">
                       {parsed.rows.length ? parsed.rows.length : "—"}
                     </div>
                   </div>
@@ -283,7 +285,7 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
                 )}
               </div>
 
-              <div className="mt-4 text-xs opacity-70">
+              <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
                 Tipp: Für BRApool ist es praktisch, wenn deine CSV Spalten wie <span className="font-mono">barcode,kategorie,groesse,status</span> hat.
               </div>
             </div>
@@ -291,17 +293,17 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
 
           {/* Right: Preview */}
           <div className="col-span-12 lg:col-span-7">
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 px-5 py-4">
                 <div className="text-lg font-semibold">Vorschau</div>
-                <div className="text-sm opacity-70">
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">
                   {parsed.rows.length ? `${Math.min(parsed.rows.length, 30)} / ${parsed.rows.length}` : "—"}
                 </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-white/10 opacity-80">
+                  <thead className="border-b border-slate-200 dark:border-white/10 opacity-80">
                     <tr>
                       {(parsed.headers.length ? parsed.headers : ["—"]).slice(0, 8).map((h) => (
                         <th key={h} className="px-5 py-3 text-left font-medium whitespace-nowrap">
@@ -323,7 +325,7 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
                       ))
                     ) : (
                       <tr>
-                        <td className="px-5 py-6 opacity-70" colSpan={8}>
+                        <td className="px-5 py-6 text-zinc-500 dark:text-zinc-400" colSpan={8}>
                           Keine Daten — wähle links eine CSV-Datei aus.
                         </td>
                       </tr>
@@ -332,11 +334,11 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/10 px-5 py-4">
-                <div className="text-xs opacity-70">Import-API bauen wir als nächstes — UI ist fertig.</div>
+              <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 px-5 py-4">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">Import-API bauen wir als nächstes — UI ist fertig.</div>
                 <button
                   className={
-                    "rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm hover:bg-white/15 disabled:opacity-50"
+                    "rounded-xl border border-slate-300 bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15 disabled:opacity-50"
                   }
                   disabled={!parsed.rows.length || importing}
                   onClick={confirmImport}
@@ -347,7 +349,6 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

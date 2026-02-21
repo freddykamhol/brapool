@@ -6,32 +6,6 @@ import WaescheEditModal from "@/app/components/WaescheEditModal";
 type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
 type LogSeverity = "ROT" | "GELB" | "GRUEN" | "INFO";
 
-function statusBadgeClasses(s: WaescheStatus) {
-  switch (s) {
-    case "EINGELAGERT":
-      return "bg-green-500/15 border-green-500/40 text-green-200";
-    case "UMLAUF":
-      return "bg-yellow-500/15 border-yellow-500/40 text-yellow-200";
-    case "DEFEKT_REPARATUR":
-      return "bg-red-500/15 border-red-500/40 text-red-200";
-    case "DEFEKT_ENTSORGT":
-      return "bg-black/40 border-white/10 text-white/80";
-  }
-}
-
-function StatusBadge({ status }: { status: WaescheStatus }) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-        statusBadgeClasses(status),
-      ].join(" ")}
-    >
-      {statusLabel(status)}
-    </span>
-  );
-}
-
 type WaescheLog = {
   id: string;
   type: string;
@@ -50,15 +24,36 @@ type Waesche = {
   groesse: string;
   status: WaescheStatus;
   bemerkung: string | null;
-
   eingelagertAm: string | null;
   ausgetragenVon: string | null;
   ausgegebenAn: string | null;
   ausgabeDatum: string | null;
-
   createdAt: string;
   updatedAt: string;
 };
+
+const TABLE_PAGE_SIZE = 10;
+
+function statusBadgeClasses(s: WaescheStatus) {
+  switch (s) {
+    case "EINGELAGERT":
+      return "border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-green-500/40 dark:bg-green-500/15 dark:text-green-200";
+    case "UMLAUF":
+      return "border border-amber-300 bg-amber-50 text-amber-800 dark:border-yellow-500/40 dark:bg-yellow-500/15 dark:text-yellow-200";
+    case "DEFEKT_REPARATUR":
+      return "border border-red-300 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-200";
+    case "DEFEKT_ENTSORGT":
+      return "border border-slate-300 bg-slate-100 text-slate-700 dark:border-white/10 dark:bg-black/40 dark:text-white/80";
+  }
+}
+
+function StatusBadge({ status }: { status: WaescheStatus }) {
+  return (
+    <span className={["inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", statusBadgeClasses(status)].join(" ")}>
+      {statusLabel(status)}
+    </span>
+  );
+}
 
 function fmtDateTime(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -83,22 +78,14 @@ function statusLabel(s: WaescheStatus) {
 function severityClasses(sev: LogSeverity) {
   switch (sev) {
     case "ROT":
-      return "border border-red-500/40 bg-red-500/10";
+      return "border border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10";
     case "GELB":
-      return "border border-yellow-500/40 bg-yellow-500/10";
+      return "border border-amber-300 bg-amber-50 dark:border-yellow-500/40 dark:bg-yellow-500/10";
     case "GRUEN":
-      return "border border-green-500/40 bg-green-500/10";
+      return "border border-emerald-300 bg-emerald-50 dark:border-green-500/40 dark:bg-green-500/10";
     default:
-      return "border border-white/10 bg-white/5";
+      return "border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5";
   }
-}
-
-function weeksSince(iso: string | null | undefined) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const diff = Date.now() - d.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24 * 7));
 }
 
 export default function DashboardPage() {
@@ -107,77 +94,131 @@ export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  const selected = useMemo(
-    () => items.find((x) => x.systemId === selectedId) ?? null,
-    [items, selectedId]
-  );
+  const [tablePage, setTablePage] = useState(1);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsPages, setLogsPages] = useState(1);
+  const [logsBusy, setLogsBusy] = useState(false);
 
-  async function reload() {
-    const [wRes, lRes] = await Promise.all([
-      fetch("/api/waesche", { cache: "no-store" }),
-      fetch("/api/logs", { cache: "no-store" }),
-    ]);
+  const selected = useMemo(() => items.find((x) => x.systemId === selectedId) ?? null, [items, selectedId]);
 
+  const stats = useMemo(() => {
+    const total = items.length;
+    const umlauf = items.filter((x) => x.status === "UMLAUF").length;
+    const eingelagert = items.filter((x) => x.status === "EINGELAGERT").length;
+    const byKategorie = new Map<WaescheKategorie, number>();
+    for (const it of items) {
+      byKategorie.set(it.kategorie, (byKategorie.get(it.kategorie) ?? 0) + 1);
+    }
+    const kategorieStats = Array.from(byKategorie.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([kategorie, count]) => ({ kategorie, count }));
+    return { total, umlauf, eingelagert, kategorieStats };
+  }, [items]);
+
+  const tablePages = Math.max(1, Math.ceil(items.length / TABLE_PAGE_SIZE));
+  const tableRows = useMemo(() => {
+    const start = (tablePage - 1) * TABLE_PAGE_SIZE;
+    return items.slice(start, start + TABLE_PAGE_SIZE);
+  }, [items, tablePage]);
+
+  useEffect(() => {
+    if (tablePage > tablePages) setTablePage(tablePages);
+  }, [tablePage, tablePages]);
+
+  async function reloadItems() {
+    const wRes = await fetch("/api/waesche", { cache: "no-store" });
     const wJson = await wRes.json().catch(() => null);
-    const lJson = await lRes.json().catch(() => null);
-
-    if (wJson?.ok) {
+    if (wJson?.ok && Array.isArray(wJson.items)) {
       setItems(wJson.items);
       if (selectedId === null && wJson.items.length) setSelectedId(wJson.items[0].systemId);
     }
+  }
 
-    if (lJson?.ok) setLogs(lJson.logs);
+  async function reloadLogs(page: number) {
+    setLogsBusy(true);
+    try {
+      const lRes = await fetch(`/api/logs?page=${page}`, { cache: "no-store" });
+      const lJson = await lRes.json().catch(() => null);
+      if (lJson?.ok) {
+        setLogs(Array.isArray(lJson.logs) ? lJson.logs : []);
+        setLogsPage(typeof lJson.page === "number" ? lJson.page : page);
+        setLogsPages(typeof lJson.pages === "number" ? lJson.pages : 1);
+      }
+    } finally {
+      setLogsBusy(false);
+    }
+  }
+
+  async function reloadAll(pageForLogs: number = logsPage) {
+    await Promise.all([reloadItems(), reloadLogs(pageForLogs)]);
   }
 
   useEffect(() => {
-    reload();
-    // optional: live refresh alle 15s
-    const t = setInterval(reload, 15000);
-    return () => clearInterval(t);
+    reloadAll(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // GELB: Umlauf > 6 Wochen (dynamisch, ohne DB-Log nötig)
-  const umlaufWarnings = useMemo(() => {
-    const warns: WaescheLog[] = [];
-    for (const it of items) {
-      if (it.status === "UMLAUF") {
-        const base = it.ausgabeDatum ?? it.updatedAt;
-        const w = weeksSince(base);
-        if (w !== null && w >= 6) {
-          warns.push({
-            id: `umlauf-${it.systemId}`,
-            type: "UMLAUF_WARNUNG",
-            severity: "GELB",
-            message: `Kat ${it.kategorie} mit Barcode ${it.barcode} ist seit ${w} Wochen im Status „UMLAUF“.`,
-            createdAt: base ?? new Date().toISOString(),
-            waescheSystemId: it.systemId,
-          });
-        }
-      }
-    }
-    return warns;
-  }, [items]);
+  useEffect(() => {
+    const t = setInterval(() => {
+      void reloadAll(logsPage);
+    }, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logsPage]);
 
-  const mergedLogs = useMemo(() => {
-    const all = [...umlaufWarnings, ...logs];
-    all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return all.slice(0, 40);
-  }, [umlaufWarnings, logs]);
+  async function deleteReadLogs(ids: string[]) {
+    if (!ids.length) return;
+    const res = await fetch("/api/logs", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!json?.ok) {
+      alert(json?.error ?? "Löschen der Benachrichtigungen fehlgeschlagen");
+      return;
+    }
+    await reloadLogs(logsPage);
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top: 3/4 Tabelle + 1/4 Details */}
+      <section className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+          <div className="text-5xl font-semibold leading-none">{stats.total}</div>
+          <div className="mt-2 text-sm text-zinc-400">Gesamtbestand</div>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-5">
+            {stats.kategorieStats.map((row) => (
+              <div
+                key={row.kategorie}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+              >
+                <div className="font-semibold text-zinc-200">{row.count}</div>
+                <div className="text-zinc-400">{row.kategorie}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="col-span-12 rounded-2xl border border-slate-200 bg-white p-6 md:col-span-6 dark:border-white/10 dark:bg-white/5">
+          <div className="text-4xl font-semibold leading-none">{stats.umlauf}</div>
+          <div className="mt-2 text-sm text-zinc-400">UMLAUF</div>
+        </div>
+        <div className="col-span-12 rounded-2xl border border-slate-200 bg-white p-6 md:col-span-6 dark:border-white/10 dark:bg-white/5">
+          <div className="text-4xl font-semibold leading-none">{stats.eingelagert}</div>
+          <div className="mt-2 text-sm text-zinc-400">EINGELAGERT</div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-12 gap-6">
-        <section className="col-span-12 lg:col-span-9 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <section className="col-span-12 overflow-hidden rounded-2xl border border-slate-200 bg-white lg:col-span-9 dark:border-white/10 dark:bg-white/5">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/10">
             <div className="text-lg font-semibold">Wäsche</div>
-            <div className="text-sm opacity-70">{items.length} Einträge</div>
+            <div className="text-sm text-zinc-400">{items.length} Einträge</div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-white/10 opacity-80">
+              <thead className="border-b border-slate-200 text-zinc-300 dark:border-white/10">
                 <tr>
                   <th className="px-5 py-3 text-left font-medium">Kategorie</th>
                   <th className="px-5 py-3 text-left font-medium">Größe</th>
@@ -186,14 +227,14 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((it) => {
+                {tableRows.map((it) => {
                   const active = it.systemId === selectedId;
                   return (
                     <tr
                       key={it.systemId}
                       className={[
-                        "cursor-pointer border-b border-white/5 hover:bg-white/5",
-                        active ? "bg-white/10" : "",
+                        "cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5",
+                        active ? "bg-slate-100 dark:bg-white/10" : "",
                       ].join(" ")}
                       onClick={() => setSelectedId(it.systemId)}
                     >
@@ -201,14 +242,14 @@ export default function DashboardPage() {
                       <td className="px-5 py-3">{it.groesse}</td>
                       <td className="px-5 py-3">{it.barcode}</td>
                       <td className="px-5 py-3">
-  <StatusBadge status={it.status} />
-</td>
+                        <StatusBadge status={it.status} />
+                      </td>
                     </tr>
                   );
                 })}
-                {!items.length && (
+                {!tableRows.length && (
                   <tr>
-                    <td className="px-5 py-6 opacity-70" colSpan={4}>
+                    <td className="px-5 py-6 text-zinc-400" colSpan={4}>
                       Noch keine Einträge vorhanden.
                     </td>
                   </tr>
@@ -216,44 +257,63 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+
+          <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3 text-sm dark:border-white/10">
+            <div className="text-zinc-400">Seite {tablePage} / {tablePages}</div>
+            <div className="flex gap-2">
+              <button
+                className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+                onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                disabled={tablePage <= 1}
+              >
+                Zurück
+              </button>
+              <button
+                className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+                onClick={() => setTablePage((p) => Math.min(tablePages, p + 1))}
+                disabled={tablePage >= tablePages}
+              >
+                Weiter
+              </button>
+            </div>
+          </div>
         </section>
 
-        <aside className="col-span-12 lg:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-5">
+        <aside className="col-span-12 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3 dark:border-white/10 dark:bg-white/5">
           <div className="text-lg font-semibold">Details</div>
 
           {!selected ? (
-            <div className="mt-4 text-sm opacity-70">Wähle links ein Wäschestück aus.</div>
+            <div className="mt-4 text-sm text-zinc-400">Wähle links ein Wäschestück aus.</div>
           ) : (
             <>
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="opacity-70">System-ID</div>
+                  <div className="text-zinc-400">System-ID</div>
                   <div className="font-medium">{selected.systemId}</div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <div className="opacity-70">Kategorie</div>
+                  <div className="text-zinc-400">Kategorie</div>
                   <div className="font-medium">{selected.kategorie}</div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <div className="opacity-70">Größe</div>
+                  <div className="text-zinc-400">Größe</div>
                   <div className="font-medium">{selected.groesse}</div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <div className="opacity-70">Barcode</div>
+                  <div className="text-zinc-400">Barcode</div>
                   <div className="font-medium">{selected.barcode}</div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-  <div className="opacity-70">Status</div>
-  <StatusBadge status={selected.status} />
-</div>
-                <div className="pt-2 border-t border-white/10">
-                  <div className="opacity-70 mb-1">Bemerkung</div>
+                  <div className="text-zinc-400">Status</div>
+                  <StatusBadge status={selected.status} />
+                </div>
+                <div className="border-t border-slate-200 pt-2 dark:border-white/10">
+                  <div className="mb-1 text-zinc-400">Bemerkung</div>
                   <div className="whitespace-pre-wrap">{selected.bemerkung ?? "—"}</div>
                 </div>
-
-                <div className="pt-2 border-t border-white/10">
-                  <div className="opacity-70 mb-1">Ausgabe</div>
-                  <div className="text-xs opacity-80">
+                <div className="border-t border-slate-200 pt-2 dark:border-white/10">
+                  <div className="mb-1 text-zinc-400">Ausgabe</div>
+                  <div className="text-xs text-zinc-300">
                     <div>Ausgetragen von: {selected.ausgetragenVon ?? "—"}</div>
                     <div>Ausgegeben an: {selected.ausgegebenAn ?? "—"}</div>
                     <div>Datum: {fmtDateTime(selected.ausgabeDatum)}</div>
@@ -262,15 +322,15 @@ export default function DashboardPage() {
               </div>
 
               <button
-                className="mt-5 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-2 hover:bg-white/15"
+                className="mt-5 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 hover:bg-slate-100 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
                 onClick={() => setEditOpen(true)}
               >
                 Bearbeiten
               </button>
 
               <button
-                className="mt-3 w-full rounded-xl border border-white/10 px-4 py-2 hover:bg-white/5"
-                onClick={reload}
+                className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-2 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+                onClick={() => void reloadAll(logsPage)}
               >
                 Aktualisieren
               </button>
@@ -279,26 +339,58 @@ export default function DashboardPage() {
         </aside>
       </div>
 
-      {/* Bottom: Logs / Benachrichtigungen full width */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div className="text-lg font-semibold">Log / Benachrichtigungen</div>
-          <div className="text-sm opacity-70">{mergedLogs.length} Einträge</div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/10">
+          <div className="text-lg font-semibold">Benachrichtigungen</div>
+          <div className="text-sm text-zinc-400">Seite {logsPage} / {logsPages}</div>
         </div>
 
-        <div className="p-5 space-y-3">
-          {mergedLogs.map((l) => (
+        <div className="space-y-3 p-5">
+          {logs.map((l) => (
             <div key={l.id} className={`rounded-xl p-4 ${severityClasses(l.severity)}`}>
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start justify-between gap-4">
                 <div className="text-sm">{l.message}</div>
-                <div className="text-xs opacity-70 whitespace-nowrap">{fmtDateTime(l.createdAt)}</div>
+                <div className="shrink-0 text-right">
+                  <div className="whitespace-nowrap text-xs text-zinc-400">{fmtDateTime(l.createdAt)}</div>
+                  <button
+                    className="mt-2 rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs hover:bg-slate-100 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
+                    onClick={() => void deleteReadLogs([l.id])}
+                  >
+                    Gelesen
+                  </button>
+                </div>
               </div>
             </div>
           ))}
-
-          {!mergedLogs.length && (
-            <div className="text-sm opacity-70">Noch keine Logs vorhanden.</div>
+          {!logs.length && (
+            <div className="text-sm text-zinc-400">Keine Benachrichtigungen vorhanden.</div>
           )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3 text-sm dark:border-white/10">
+          <button
+            className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={() => void deleteReadLogs(logs.map((l) => l.id))}
+            disabled={!logs.length || logsBusy}
+          >
+            Alle sichtbaren als gelesen löschen
+          </button>
+          <div className="flex gap-2">
+            <button
+              className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+              onClick={() => void reloadLogs(Math.max(1, logsPage - 1))}
+              disabled={logsPage <= 1 || logsBusy}
+            >
+              Zurück
+            </button>
+            <button
+              className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+              onClick={() => void reloadLogs(Math.min(logsPages, logsPage + 1))}
+              disabled={logsPage >= logsPages || logsBusy}
+            >
+              Weiter
+            </button>
+          </div>
         </div>
       </section>
 
@@ -307,7 +399,7 @@ export default function DashboardPage() {
           open={editOpen}
           item={selected}
           onClose={() => setEditOpen(false)}
-          onSaved={reload}
+          onSaved={() => void reloadAll(logsPage)}
         />
       )}
     </div>

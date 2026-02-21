@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ModalShell from "@/app/components/ModalShell";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
 type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
@@ -26,6 +27,8 @@ export default function WaescheEditModal(props: {
   const { open, item, onClose, onSaved } = props;
 
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [kategorie, setKategorie] = useState<WaescheKategorie>(item.kategorie);
   const [groesse, setGroesse] = useState(item.groesse);
@@ -35,7 +38,6 @@ export default function WaescheEditModal(props: {
 
   const [ausgetragenVon, setAusgetragenVon] = useState(item.ausgetragenVon ?? "");
   const [ausgegebenAn, setAusgegebenAn] = useState(item.ausgegebenAn ?? "");
-  const [ausgabeDatum, setAusgabeDatum] = useState(item.ausgabeDatum ? item.ausgabeDatum.slice(0, 16) : "");
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +48,8 @@ export default function WaescheEditModal(props: {
     setBemerkung(item.bemerkung ?? "");
     setAusgetragenVon(item.ausgetragenVon ?? "");
     setAusgegebenAn(item.ausgegebenAn ?? "");
-    setAusgabeDatum(item.ausgabeDatum ? item.ausgabeDatum.slice(0, 16) : "");
+    setDeleting(false);
+    setConfirmDelete(false);
   }, [open, item]);
 
   const canSave = useMemo(() => {
@@ -72,7 +75,7 @@ export default function WaescheEditModal(props: {
           bemerkung,
           ausgetragenVon,
           ausgegebenAn,
-          ausgabeDatum: ausgabeDatum ? new Date(ausgabeDatum).toISOString() : null,
+          ausgabeDatum: new Date().toISOString(),
         }),
       });
 
@@ -89,24 +92,54 @@ export default function WaescheEditModal(props: {
     }
   }
 
+  async function remove() {
+    if (saving || deleting) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/waesche?systemId=${item.systemId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ systemId: item.systemId }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) {
+        alert(json?.error ?? `Löschen fehlgeschlagen (HTTP ${res.status})`);
+        return;
+      }
+
+      onSaved();
+      onClose();
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-zinc-950 p-6">
+    <ModalShell open={open} onClose={onClose} panelClassName="max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur">
         <div className="flex items-center justify-between">
           <div className="text-lg font-semibold">Wäsche bearbeiten</div>
-          <button className="rounded-lg border border-white/10 px-3 py-1.5" onClick={onClose}>
+          <button
+            className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={onClose}
+          >
             Schließen
           </button>
         </div>
 
         <div className="mt-5 grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-6">
-            <div className="text-sm opacity-70 mb-1">Kategorie</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Kategorie</div>
             <select
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={kategorie}
               onChange={(e) => setKategorie(e.target.value as WaescheKategorie)}
             >
@@ -119,11 +152,11 @@ export default function WaescheEditModal(props: {
           </div>
 
           <div className="col-span-12 md:col-span-6">
-            <div className="text-sm opacity-70 mb-1">Status</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Status</div>
             <select
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => setStatus(e.target.value as WaescheStatus)}
             >
               <option value="EINGELAGERT">Eingelagert</option>
               <option value="UMLAUF">Umlauf</option>
@@ -133,9 +166,9 @@ export default function WaescheEditModal(props: {
           </div>
 
           <div className="col-span-12 md:col-span-6">
-            <div className="text-sm opacity-70 mb-1">Größe</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Größe</div>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={groesse}
               onChange={(e) => setGroesse(e.target.value)}
               placeholder="z.B. L / 52 / XL / 38"
@@ -143,9 +176,9 @@ export default function WaescheEditModal(props: {
           </div>
 
           <div className="col-span-12 md:col-span-6">
-            <div className="text-sm opacity-70 mb-1">Barcode</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Barcode</div>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               placeholder="z.B. BRA-000123"
@@ -153,56 +186,72 @@ export default function WaescheEditModal(props: {
           </div>
 
           <div className="col-span-12">
-            <div className="text-sm opacity-70 mb-1">Bemerkung</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Bemerkung</div>
             <textarea
-              className="w-full min-h-[90px] rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full min-h-[90px] rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={bemerkung}
               onChange={(e) => setBemerkung(e.target.value)}
             />
           </div>
 
           <div className="col-span-12 md:col-span-4">
-            <div className="text-sm opacity-70 mb-1">Ausgetragen von</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Ausgetragen von</div>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={ausgetragenVon}
               onChange={(e) => setAusgetragenVon(e.target.value)}
             />
           </div>
 
           <div className="col-span-12 md:col-span-4">
-            <div className="text-sm opacity-70 mb-1">Ausgegeben an</div>
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Ausgegeben an</div>
             <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5"
               value={ausgegebenAn}
               onChange={(e) => setAusgegebenAn(e.target.value)}
             />
           </div>
 
           <div className="col-span-12 md:col-span-4">
-            <div className="text-sm opacity-70 mb-1">Ausgabe Datum</div>
-            <input
-              type="datetime-local"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-              value={ausgabeDatum}
-              onChange={(e) => setAusgabeDatum(e.target.value)}
-            />
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">Ausgabe Datum</div>
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
+              Wird beim Speichern automatisch auf jetzt gesetzt.
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button className="rounded-xl border border-white/10 px-4 py-2" onClick={onClose}>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <button
+            className={[
+              "rounded-xl border px-4 py-2 disabled:opacity-50",
+              confirmDelete
+                ? "border-red-500 bg-red-600 text-white hover:bg-red-700 dark:border-red-400 dark:bg-red-500 dark:hover:bg-red-600"
+                : "border-red-300 text-red-700 hover:bg-red-50 dark:border-red-500/40 dark:text-red-200 dark:hover:bg-red-500/10",
+            ].join(" ")}
+            onClick={remove}
+            disabled={saving || deleting}
+          >
+            {deleting ? "Löschen..." : confirmDelete ? "Wirklich löschen?" : "Löschen"}
+          </button>
+          <div className="flex gap-3">
+          <button
+            className="rounded-xl border border-slate-300 px-4 py-2 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={() => {
+              setConfirmDelete(false);
+              onClose();
+            }}
+          >
             Abbrechen
           </button>
           <button
-            className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 disabled:opacity-50"
-            disabled={!canSave || saving}
+            className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
+            disabled={!canSave || saving || deleting}
             onClick={save}
           >
             {saving ? "Speichern..." : "Speichern"}
           </button>
+          </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
