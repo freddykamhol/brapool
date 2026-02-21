@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import WaescheEditModal from "@/app/components/WaescheEditModal";
 import EinlagernNeuModal from "@/app/components/EinlagernNeuModal";
 import CsvImportModal from "@/app/components/CsvImportModal";
+import MonthlyReportModal from "@/app/components/MonthlyReportModal";
 import { parseWaescheCsvRows } from "@/app/lib/waesche-csv";
 
 type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
@@ -72,6 +73,7 @@ export default function DatenbankPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
+  const [monthlyReportOpen, setMonthlyReportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<WaescheStatus | "ALLE">("ALLE");
   const [kategorieFilter, setKategorieFilter] = useState<WaescheKategorie | "ALLE">("ALLE");
@@ -174,6 +176,13 @@ export default function DatenbankPage() {
               onClick={openBulkCreate}
             >
               Erstellen (Bulk neu)
+            </button>
+
+            <button
+              className="rounded-xl border border-slate-300 bg-slate-50 dark:border-white/10 dark:bg-white/10 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-white/15"
+              onClick={() => setMonthlyReportOpen(true)}
+            >
+              Monatsbericht
             </button>
 
             <button
@@ -457,6 +466,12 @@ export default function DatenbankPage() {
           alert(`CSV importiert: ${created} neu angelegt${skipped ? `, ${skipped} übersprungen` : ""}.`);
           await reload();
         }}
+      />
+
+      <MonthlyReportModal
+        open={monthlyReportOpen}
+        onClose={() => setMonthlyReportOpen(false)}
+        items={items}
       />
     </div>
   );
