@@ -20,7 +20,7 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, description: "Uebersicht & Hinweise" },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, description: "Übersicht & Hinweise" },
   { label: "Einlagern", href: "/einlagern", icon: PackagePlus, description: "In Bestand aufnehmen" },
   { label: "Ausgeben", href: "/ausgeben", icon: ArrowRightLeft, description: "Umlauf / Uebergabe" },
   { label: "Datenbank", href: "/datenbank", icon: Database, description: "Alle Eintraege" },
@@ -103,7 +103,7 @@ export default function Sidebar() {
                 <div className="min-w-0">
                   <div className="truncate text-base font-bold tracking-tight text-slate-900 dark:text-white">BRApool</div>
                   <div className="truncate text-xs font-medium text-slate-600 dark:text-zinc-400">
-                    Waescheverwaltung • Inventar
+                    Wäscheverwaltung • Inventar
                   </div>
                 </div>
               </div>
