@@ -22,6 +22,7 @@ type Waesche = {
   barcode: string;
   kategorie: WaescheKategorie;
   groesse: string;
+  cws: boolean;
   status: WaescheStatus;
   bemerkung: string | null;
   eingelagertAm: string | null;

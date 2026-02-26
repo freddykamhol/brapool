@@ -9,6 +9,7 @@ export async function GET() {
       systemId: true,
       kategorie: true,
       groesse: true,
+      cws: true,
       barcode: true,
       status: true,
       bemerkung: true,
@@ -37,6 +38,7 @@ export async function PATCH(req: Request) {
   if (body.kategorie) data.kategorie = body.kategorie;
   if (typeof body.groesse === "string") data.groesse = body.groesse.trim();
   if (typeof body.barcode === "string") data.barcode = body.barcode.trim();
+  if (typeof body.cws === "boolean") data.cws = body.cws;
   if (body.status) data.status = body.status;
   if (typeof body.bemerkung === "string") data.bemerkung = body.bemerkung.trim();
 

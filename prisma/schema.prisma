@@ -41,6 +41,7 @@ model Waesche {
 
   kategorie          WaescheKategorie
   groesse            String
+  cws                Boolean @default(false)
   status             WaescheStatus @default(EINGELAGERT)
 
   bemerkung          String?

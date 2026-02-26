@@ -22,6 +22,18 @@ function guessDelimiter(text: string): "," | ";" | "\t" {
   return ",";
 }
 
+function looksLikeBrokenUtf8(text: string): boolean {
+  return /�|Ã.|Â|â€|â€“|â€”/.test(text);
+}
+
+async function readCsvText(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+  if (!looksLikeBrokenUtf8(utf8)) return utf8;
+  // Common fallback for CSVs exported by Excel/legacy systems on Windows.
+  return new TextDecoder("windows-1252", { fatal: false }).decode(buf);
+}
+
 function splitCsvLine(line: string, delimiter: string): string[] {
   // Minimal CSV parsing (supports quotes)
   const out: string[] = [];
@@ -71,7 +83,21 @@ function parseCsv(text: string, delimiter: string): { headers: string[]; rows: C
 
   if (!lines.length) return { headers: [], rows: [], rawRows: [] };
 
-  const matrix = lines.map((l) => splitCsvLine(l, delimiter));
+  let matrix = lines.map((l) => splitCsvLine(l, delimiter));
+  const maxCols = Math.max(...matrix.map((r) => r.length));
+  if (maxCols <= 1) {
+    const candidates: Array<"," | ";" | "\t"> = [",", ";", "\t"].filter((d) => d !== delimiter) as Array<
+      "," | ";" | "\t"
+    >;
+    for (const candidate of candidates) {
+      const candidateMatrix = lines.map((l) => splitCsvLine(l, candidate));
+      const candidateMaxCols = Math.max(...candidateMatrix.map((r) => r.length));
+      if (candidateMaxCols > 1) {
+        matrix = candidateMatrix;
+        break;
+      }
+    }
+  }
 
   let headers: string[];
   let startIndex = 0;
@@ -135,7 +161,7 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
       // allow anyway, but warn
     }
 
-    const text = await file.text();
+    const text = await readCsvText(file);
     const guessed = guessDelimiter(text);
     setDelimiter(guessed);
     setRawText(text);

@@ -6,6 +6,7 @@ export type ParsedCsvItem = {
   barcode: string;
   kategorie: WaescheKategorie;
   groesse: string;
+  cws: boolean;
 };
 
 export type ParsedCsvResult = {
@@ -63,6 +64,20 @@ function parseKategorie(value: string): WaescheKategorie | null {
   return mapped[raw] ?? labelMapped[raw] ?? null;
 }
 
+function parseCws(value: string): boolean {
+  const raw = value.trim().toLowerCase();
+  if (!raw) return false;
+  return (
+    raw === "1" ||
+    raw === "true" ||
+    raw === "ja" ||
+    raw === "yes" ||
+    raw === "y" ||
+    raw === "x" ||
+    raw === "bekannt"
+  );
+}
+
 export function parseWaescheCsvRows(rows: CsvRow[]): ParsedCsvResult {
   const items: ParsedCsvItem[] = [];
   const errors: string[] = [];
@@ -72,9 +87,11 @@ export function parseWaescheCsvRows(rows: CsvRow[]): ParsedCsvResult {
     const row = rows[i];
 
     const barcode = getByAliases(row, ["barcode", "bar_code", "code", "strichcode", "ean"]);
-    const groesse = getByAliases(row, ["groesse", "größe", "size"]);
+    const groesse = getByAliases(row, ["groesse", "größe", "size", "gr??e", "gr��e", "gre", "grsse"]);
     const rawKategorie = getByAliases(row, ["kategorie", "category", "typ"]);
+    const rawCws = getByAliases(row, ["cws", "bei cws bekannt", "cws bekannt"]);
     const kategorie = parseKategorie(rawKategorie);
+    const cws = parseCws(rawCws);
 
     if (!barcode || !groesse || !kategorie) {
       errors.push(
@@ -83,7 +100,7 @@ export function parseWaescheCsvRows(rows: CsvRow[]): ParsedCsvResult {
       continue;
     }
 
-    items.push({ barcode, groesse, kategorie });
+    items.push({ barcode, groesse, kategorie, cws });
   }
 
   return { items, errors };

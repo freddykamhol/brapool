@@ -15,6 +15,7 @@ type Waesche = {
   barcode: string;
   kategorie: WaescheKategorie;
   groesse: string;
+  cws: boolean;
   status: WaescheStatus;
   bemerkung: string | null;
 
@@ -88,6 +89,11 @@ export default function DatenbankPage() {
     () => items.find((x) => x.systemId === selectedId) ?? null,
     [items, selectedId]
   );
+  const stats = useMemo(() => {
+    const total = items.length;
+    const cwsKnown = items.filter((x) => x.cws).length;
+    return { total, cwsKnown };
+  }, [items]);
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((it) => {
@@ -230,6 +236,19 @@ export default function DatenbankPage() {
         )}
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/10">
+              <div className="text-4xl font-semibold leading-none">{stats.total}</div>
+              <div className="mt-2 text-sm text-zinc-400">Gesamtbestand</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/10">
+              <div className="text-4xl font-semibold leading-none">{stats.cwsKnown}</div>
+              <div className="mt-2 text-sm text-zinc-400">bei CWS bekannt</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-4">
           <div className="text-sm font-medium">Suche & Filter</div>
           <div className="mt-3 grid grid-cols-12 gap-3">
             <div className="col-span-12 md:col-span-6">
@@ -302,6 +321,7 @@ export default function DatenbankPage() {
                   <th className="px-5 py-3 text-left font-medium">Kategorie</th>
                   <th className="px-5 py-3 text-left font-medium">Größe</th>
                   <th className="px-5 py-3 text-left font-medium">Barcode</th>
+                  <th className="px-5 py-3 text-center font-medium">CWS</th>
                   <th className="px-5 py-3 text-left font-medium">Status</th>
                 </tr>
               </thead>
@@ -320,6 +340,15 @@ export default function DatenbankPage() {
                       <td className="px-5 py-3">{it.kategorie}</td>
                       <td className="px-5 py-3">{it.groesse}</td>
                       <td className="px-5 py-3 font-mono text-xs">{it.barcode}</td>
+                      <td className="px-5 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-slate-700 dark:accent-slate-200"
+                          checked={it.cws}
+                          readOnly
+                          aria-label={`CWS ${it.cws ? "aktiv" : "inaktiv"}`}
+                        />
+                      </td>
                       <td className="px-5 py-3">
                         <span
                           className={
@@ -335,7 +364,7 @@ export default function DatenbankPage() {
                 })}
                 {!filteredItems.length && (
                   <tr>
-                    <td className="px-5 py-6 text-zinc-400" colSpan={4}>
+                    <td className="px-5 py-6 text-zinc-400" colSpan={5}>
                       Noch keine Einträge vorhanden.
                     </td>
                   </tr>
@@ -368,6 +397,10 @@ export default function DatenbankPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-zinc-400">Barcode</div>
                   <div className="font-medium font-mono text-xs">{selected.barcode}</div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-zinc-400">CWS</div>
+                  <div className="font-medium">{selected.cws ? "Ja" : "Nein"}</div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-zinc-400">Status</div>

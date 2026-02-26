@@ -9,6 +9,7 @@ type NewItem = {
   barcode: string;
   kategorie: WaescheKategorie;
   groesse: string;
+  cws: boolean;
 };
 
 type IncomingItem = Partial<NewItem> & { [key: string]: unknown };
@@ -37,16 +38,17 @@ async function nextSystemId(tx: Prisma.TransactionClient): Promise<number> {
   return next;
 }
 
-// POST { items: [{barcode,kategorie,groesse}] }
+// POST { items: [{barcode,kategorie,groesse,cws?}] }
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const items: IncomingItem[] = Array.isArray(body?.items) ? body.items : [];
 
-  const mapped: Array<{ barcode: string; kategorie: unknown; groesse: string }> = items
+  const mapped: Array<{ barcode: string; kategorie: unknown; groesse: string; cws: boolean }> = items
     .map((x: IncomingItem) => ({
       barcode: norm(x?.barcode),
       kategorie: x?.kategorie,
       groesse: norm(x?.groesse),
+      cws: Boolean(x?.cws),
     }));
 
   const cleaned: NewItem[] = mapped
@@ -85,6 +87,7 @@ export async function POST(req: Request) {
             barcode: it.barcode,
             kategorie: it.kategorie,
             groesse: it.groesse,
+            cws: Boolean(it.cws),
             status: "EINGELAGERT" as WaescheStatus,
             eingelagertAm: now,
           },

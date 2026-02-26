@@ -11,6 +11,7 @@ export type Waesche = {
   barcode: string;
   kategorie: WaescheKategorie;
   groesse: string;
+  cws: boolean;
   status: WaescheStatus;
   bemerkung: string | null;
   ausgetragenVon: string | null;
@@ -33,6 +34,7 @@ export default function WaescheEditModal(props: {
   const [kategorie, setKategorie] = useState<WaescheKategorie>(item.kategorie);
   const [groesse, setGroesse] = useState(item.groesse);
   const [barcode, setBarcode] = useState(item.barcode);
+  const [cws, setCws] = useState(item.cws);
   const [status, setStatus] = useState<WaescheStatus>(item.status);
   const [bemerkung, setBemerkung] = useState(item.bemerkung ?? "");
 
@@ -44,6 +46,7 @@ export default function WaescheEditModal(props: {
     setKategorie(item.kategorie);
     setGroesse(item.groesse);
     setBarcode(item.barcode);
+    setCws(item.cws);
     setStatus(item.status);
     setBemerkung(item.bemerkung ?? "");
     setAusgetragenVon(item.ausgetragenVon ?? "");
@@ -71,6 +74,7 @@ export default function WaescheEditModal(props: {
           kategorie,
           groesse,
           barcode,
+          cws,
           status,
           bemerkung,
           ausgetragenVon,
@@ -163,6 +167,19 @@ export default function WaescheEditModal(props: {
               <option value="DEFEKT_REPARATUR">Defekt / Reparatur</option>
               <option value="DEFEKT_ENTSORGT">Defekt / Entsorgt</option>
             </select>
+          </div>
+
+          <div className="col-span-12 md:col-span-6">
+            <div className="mb-1 text-sm text-zinc-500 dark:text-zinc-400">CWS</div>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-slate-700 dark:accent-slate-200"
+                checked={cws}
+                onChange={(e) => setCws(e.target.checked)}
+              />
+              <span className="text-sm">{cws ? "Aktiv" : "Nicht aktiv"}</span>
+            </label>
           </div>
 
           <div className="col-span-12 md:col-span-6">
