@@ -12,10 +12,11 @@ function normalizeBarcodes(input: string[]): string[] {
   return Array.from(set);
 }
 
-// POST { barcodes: string[] }
+// POST { barcodes: string[], setCwsToTrue?: boolean }
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const barcodes = normalizeBarcodes(Array.isArray(body?.barcodes) ? body.barcodes : []);
+  const setCwsToTrue = body?.setCwsToTrue === true;
 
   if (!barcodes.length) {
     return NextResponse.json({ ok: false, error: "Keine Barcodes übergeben." }, { status: 400 });
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       ausgetragenVon: null,
       ausgegebenAn: null,
       ausgabeDatum: null,
+      ...(setCwsToTrue ? { cws: true } : {}),
     },
   });
 

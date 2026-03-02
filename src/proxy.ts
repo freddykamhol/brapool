@@ -27,7 +27,9 @@ export const config = {
     "/ausgeben/:path*",
     "/datenbank/:path*",
     "/benutzer/:path*",
+    "/passwort/:path*",
     "/api/users/:path*",
     "/api/logs/:path*",
+    "/api/auth/change-password",
   ],
 };

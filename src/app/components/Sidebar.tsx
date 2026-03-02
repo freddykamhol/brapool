@@ -10,6 +10,7 @@ import {
   Database,
   Users,
   ChevronLeft,
+  KeyRound,
 } from "lucide-react";
 
 type NavItem = {
@@ -25,6 +26,7 @@ const NAV: NavItem[] = [
   { label: "Ausgeben", href: "/ausgeben", icon: ArrowRightLeft, description: "Umlauf / Uebergabe" },
   { label: "Datenbank", href: "/datenbank", icon: Database, description: "Alle Eintraege" },
   { label: "Benutzer", href: "/benutzer", icon: Users, description: "Accounts & Rollen" },
+  { label: "Passwort", href: "/passwort", icon: KeyRound, description: "Eigenes Passwort" },
 ];
 
 function cx(...classes: Array<string | false | null | undefined>) {

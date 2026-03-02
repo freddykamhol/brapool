@@ -12,6 +12,7 @@ type WarnItem = {
   kategorie: string;
   groesse: string;
   barcode: string;
+  ausgegebenAn: string | null;
   ausgabeDatum: Date | null;
   updatedAt: Date;
 };
@@ -74,6 +75,7 @@ async function sendUmlaufWarningMails(items: WarnItem[]) {
       `Kategorie: ${it.kategorie}`,
       `Größe: ${it.groesse}`,
       `Barcode: ${it.barcode}`,
+      `Ausgegeben an: ${it.ausgegebenAn?.trim() ? it.ausgegebenAn : "unbekannt"}`,
       "",
       "Bitte prüfen, ob Rückführung oder Nachverfolgung erforderlich ist.",
       "",
@@ -108,6 +110,7 @@ async function ensureUmlaufWarnings() {
       kategorie: true,
       groesse: true,
       barcode: true,
+      ausgegebenAn: true,
       ausgabeDatum: true,
       updatedAt: true,
     },
@@ -136,7 +139,7 @@ async function ensureUmlaufWarnings() {
         type: "UMLAUF_WARNUNG",
         severity: "GELB",
         waescheSystemId: it.systemId,
-        message: `Wäschestück ${it.kategorie} (${it.groesse}) mit Barcode ${it.barcode} ist seit über 6 Wochen im Status UMLAUF.`,
+        message: `Wäschestück ${it.kategorie} (${it.groesse}) mit Barcode ${it.barcode} (ausgegeben an: ${it.ausgegebenAn?.trim() ? it.ausgegebenAn : "unbekannt"}) ist seit über 6 Wochen im Status UMLAUF.`,
       },
     });
   }

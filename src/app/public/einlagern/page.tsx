@@ -334,10 +334,63 @@ function ScannerModal(props: {
   );
 }
 
+function CwsEinlagernModal(props: {
+  open: boolean;
+  loading: boolean;
+  cwsSelected: boolean;
+  onToggleCws: (next: boolean) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const { open, loading, cwsSelected, onToggleCws, onClose, onConfirm } = props;
+  if (!open) return null;
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      containerClassName="p-3 sm:p-4"
+      panelClassName="max-w-lg rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xl dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur"
+    >
+      <div className="text-lg font-semibold">Einlagern bestätigen</div>
+      <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Kommt die Kleidung von CWS?</div>
+
+      <label className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/5">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-slate-700 dark:accent-slate-200"
+          checked={cwsSelected}
+          onChange={(e) => onToggleCws(e.target.checked)}
+        />
+        <span className="text-sm">Ja, bei allen gescannten Wäschestücken CWS setzen</span>
+      </label>
+
+      <div className="mt-5 flex justify-end gap-3">
+        <button
+          className="rounded-xl border border-slate-300 px-4 py-2 hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+          onClick={onClose}
+          disabled={loading}
+        >
+          Abbrechen
+        </button>
+        <button
+          className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
+          onClick={onConfirm}
+          disabled={loading}
+        >
+          {loading ? "Einlagern..." : "Einlagern"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
 export default function EinlagernPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [setCwsOnEinlagern, setSetCwsOnEinlagern] = useState(false);
 
   const [resolved, setResolved] = useState<Map<string, Waesche>>(new Map());
   const [resolveLoading, setResolveLoading] = useState(false);
@@ -410,7 +463,13 @@ export default function EinlagernPage() {
     return miss;
   }, [barcodes, resolved]);
 
-  async function einlagern() {
+  function openEinlagernConfirm() {
+    if (!canSubmit) return;
+    setSetCwsOnEinlagern(false);
+    setConfirmOpen(true);
+  }
+
+  async function einlagern(setCwsToTrue: boolean) {
     if (!canSubmit) return;
 
     setLoading(true);
@@ -418,7 +477,7 @@ export default function EinlagernPage() {
       const res = await fetch("/api/waesche/einlagern", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ barcodes }),
+        body: JSON.stringify({ barcodes, setCwsToTrue }),
       });
 
       const json = await res.json().catch(() => null);
@@ -461,7 +520,7 @@ export default function EinlagernPage() {
             className="mt-5 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              void einlagern();
+              openEinlagernConfirm();
             }}
           >
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5 sm:p-5">
@@ -530,6 +589,18 @@ export default function EinlagernPage() {
           return true;
         }}
         onRemove={(code) => setInput((cur) => removeBarcodeFromTextarea(cur, code))}
+      />
+
+      <CwsEinlagernModal
+        open={confirmOpen}
+        loading={loading}
+        cwsSelected={setCwsOnEinlagern}
+        onToggleCws={setSetCwsOnEinlagern}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void einlagern(setCwsOnEinlagern);
+        }}
       />
     </div>
   );
