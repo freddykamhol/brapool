@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 function LoginContent() {
   const router = useRouter();
@@ -47,12 +48,20 @@ function LoginContent() {
       <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-5xl items-center justify-center">
         <div className="grid w-full overflow-hidden rounded-3xl border border-white/[0.12] bg-zinc-950/78 shadow-[0_28px_90px_rgba(2,6,23,0.6)] backdrop-blur-2xl lg:grid-cols-2">
           <section className="hidden border-r border-white/10 p-10 lg:block">
-            <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-white to-zinc-300 text-zinc-950 shadow-sm">
-                <span className="text-base font-semibold tracking-tight">BRA</span>
+            <div className="flex items-center gap-4">
+              <div className="relative h-28 w-28 overflow-hidden rounded-3xl border border-white/15 bg-white/5 shadow-[0_14px_30px_rgba(2,6,23,0.45)]">
+                <Image
+                  src="/logo-rettungswache-brakel2.png"
+                  alt="Rettungswache Brakel Logo"
+                  fill
+                  sizes="112px"
+                  className="object-cover"
+                  priority
+                />
               </div>
               <div>
-                <div className="text-xl font-bold tracking-tight text-white">BRApool</div>
+                <div className="text-2xl font-bold tracking-tight text-white">BRApool</div>
+                <div className="text-sm text-zinc-300">Rettungswache Brakel</div>
                 <div className="text-xs text-zinc-400">Wäscheverwaltung</div>
               </div>
             </div>
@@ -67,12 +76,19 @@ function LoginContent() {
           </section>
           <section className="p-6 sm:p-8 md:p-10">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-white to-zinc-300 text-zinc-950 shadow-sm">
-                <span className="text-sm font-semibold tracking-tight">BRA</span>
+              <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/15 bg-white/5 shadow-sm">
+                <Image
+                  src="/logo-rettungswache-brakel2.png"
+                  alt="Rettungswache Brakel Logo"
+                  fill
+                  sizes="56px"
+                  className="object-cover"
+                  priority
+                />
               </div>
               <div>
                 <div className="text-lg font-semibold tracking-tight text-white">BRApool Login</div>
-                <div className="text-xs text-zinc-400">Wäscheverwaltung</div>
+                <div className="text-xs text-zinc-300">Rettungswache Brakel</div>
               </div>
             </div>
             <div className="hidden text-2xl font-semibold tracking-tight text-white lg:block">Anmeldung</div>

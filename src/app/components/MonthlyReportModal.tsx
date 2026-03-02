@@ -118,7 +118,7 @@ export default function MonthlyReportModal({ open, onClose, items }: MonthlyRepo
 
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
-    doc.text("Datensaetze", 18, 47);
+    doc.text("Datensätze", 18, 47);
     doc.text("Eingelagert", 80, 47);
     doc.text("Ausgegeben", 142, 47);
 

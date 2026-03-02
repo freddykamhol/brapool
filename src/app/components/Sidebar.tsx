@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   LayoutDashboard,
   PackagePlus,
@@ -11,6 +12,7 @@ import {
   Users,
   ChevronLeft,
   KeyRound,
+  LogOut,
 } from "lucide-react";
 
 type NavItem = {
@@ -23,8 +25,8 @@ type NavItem = {
 const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, description: "Übersicht & Hinweise" },
   { label: "Einlagern", href: "/einlagern", icon: PackagePlus, description: "In Bestand aufnehmen" },
-  { label: "Ausgeben", href: "/ausgeben", icon: ArrowRightLeft, description: "Umlauf / Uebergabe" },
-  { label: "Datenbank", href: "/datenbank", icon: Database, description: "Alle Eintraege" },
+  { label: "Ausgeben", href: "/ausgeben", icon: ArrowRightLeft, description: "Umlauf / Übergabe" },
+  { label: "Datenbank", href: "/datenbank", icon: Database, description: "Alle Einträge" },
   { label: "Benutzer", href: "/benutzer", icon: Users, description: "Accounts & Rollen" },
   { label: "Passwort", href: "/passwort", icon: KeyRound, description: "Eigenes Passwort" },
 ];
@@ -37,8 +39,36 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
 }
 
+function initialsFromName(name: string) {
+  const cleaned = name.trim();
+  if (!cleaned) return "??";
+  const parts = cleaned.split(/\s+/g).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function colorIndex(seed: string, mod: number) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return mod ? hash % mod : 0;
+}
+
+const AVATAR_COLORS = [
+  "from-rose-500 to-pink-600",
+  "from-amber-500 to-orange-600",
+  "from-emerald-500 to-teal-600",
+  "from-sky-500 to-blue-600",
+  "from-indigo-500 to-violet-600",
+  "from-fuchsia-500 to-purple-600",
+  "from-cyan-500 to-sky-600",
+  "from-lime-500 to-green-600",
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const collapsed = useSyncExternalStore(
     (onStoreChange) => {
       if (typeof window === "undefined") return () => {};
@@ -64,6 +94,49 @@ export default function Sidebar() {
     window.dispatchEvent(new Event("brapool-sidebar"));
   };
 
+  const [sessionName, setSessionName] = useState("");
+  const [sessionUserId, setSessionUserId] = useState("");
+  const [logoutBusy, setLogoutBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMe() {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (cancelled) return;
+      if (json?.ok && json?.session) {
+        setSessionName(typeof json.session.name === "string" ? json.session.name : "");
+        setSessionUserId(typeof json.session.userId === "string" ? json.session.userId : "");
+      }
+    }
+    void loadMe();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const avatarSeed = sessionUserId || sessionName || "user";
+  const avatarClass = useMemo(
+    () => AVATAR_COLORS[colorIndex(avatarSeed, AVATAR_COLORS.length)],
+    [avatarSeed],
+  );
+  const avatarInitials = useMemo(
+    () => initialsFromName(sessionName || sessionUserId || "User"),
+    [sessionName, sessionUserId],
+  );
+
+  async function logout() {
+    if (logoutBusy) return;
+    setLogoutBusy(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      const next = encodeURIComponent(pathname || "/dashboard");
+      router.replace(`/login?next=${next}`);
+      setLogoutBusy(false);
+    }
+  }
+
   return (
     <aside
       className={cx(
@@ -81,25 +154,27 @@ export default function Sidebar() {
             )}
           >
             {collapsed ? (
-              <div
-                className={cx(
-                  "grid h-11 w-11 place-items-center rounded-2xl shadow-sm",
-                  "bg-gradient-to-br from-slate-900 to-slate-700 text-white",
-                  "dark:from-white dark:to-zinc-300 dark:text-zinc-950"
-                )}
-              >
-                <span className="text-xs font-semibold tracking-tight">BRA</span>
+              <div className="relative h-11 w-11 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
+                <Image
+                  src="/logo-rettungswache-brakel2.png"
+                  alt="Rettungswache Brakel Logo"
+                  fill
+                  sizes="44px"
+                  className="object-cover"
+                  priority
+                />
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <div
-                  className={cx(
-                    "grid h-11 w-11 place-items-center rounded-2xl shadow-sm",
-                    "bg-gradient-to-br from-slate-900 to-slate-700 text-white",
-                    "dark:from-white dark:to-zinc-300 dark:text-zinc-950"
-                  )}
-                >
-                  <span className="text-base font-semibold tracking-tight">BRA</span>
+                <div className="relative h-11 w-11 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
+                  <Image
+                    src="/logo-rettungswache-brakel2.png"
+                    alt="Rettungswache Brakel Logo"
+                    fill
+                    sizes="44px"
+                    className="object-cover"
+                    priority
+                  />
                 </div>
 
                 <div className="min-w-0">
@@ -192,6 +267,48 @@ export default function Sidebar() {
               </button>
             </div>
 
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-2 dark:border-white/10 dark:bg-white/5">
+            {collapsed ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className={cx("grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br text-white", avatarClass)}>
+                  <span className="text-xs font-semibold tracking-tight">{avatarInitials}</span>
+                </div>
+                <button
+                  onClick={() => void logout()}
+                  aria-label="Abmelden"
+                  title="Abmelden"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
+                  disabled={logoutBusy}
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-2 dark:border-white/10 dark:bg-white/5">
+                <div className={cx("grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br text-white", avatarClass)}>
+                  <span className="text-xs font-semibold tracking-tight">{avatarInitials}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-slate-800 dark:text-zinc-200">
+                    {sessionName || "Angemeldet"}
+                  </div>
+                  <div className="truncate text-xs text-slate-500 dark:text-zinc-500">
+                    {sessionUserId || "User"}
+                  </div>
+                </div>
+                <button
+                  onClick={() => void logout()}
+                  aria-label="Abmelden"
+                  title="Abmelden"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
+                  disabled={logoutBusy}
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {!collapsed && (

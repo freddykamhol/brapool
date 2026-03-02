@@ -4,9 +4,9 @@ export const metadata = {
   title: "BRApool",
   description: "BRApool",
   icons: {
-    icon: "/logo-mark.svg",
-    shortcut: "/logo-mark.svg",
-    apple: "/logo-mark.svg",
+    icon: "/logo-rettungswache-brakel2.png",
+    shortcut: "/logo-rettungswache-brakel2.png",
+    apple: "/logo-rettungswache-brakel2.png",
   },
 };
 

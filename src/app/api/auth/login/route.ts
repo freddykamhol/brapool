@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     const key = clientKey(req, userId);
     if (isRateLimited(key)) {
-      return jsonError("Zu viele Login-Versuche. Bitte spaeter erneut versuchen.", 429);
+      return jsonError("Zu viele Login-Versuche. Bitte später erneut versuchen.", 429);
     }
 
     const user = await prisma.user.findUnique({
@@ -65,13 +65,13 @@ export async function POST(req: Request) {
 
     if (!user) {
       registerFailure(key);
-      return jsonError("Ungueltige Zugangsdaten.", 401);
+      return jsonError("Ungültige Zugangsdaten.", 401);
     }
 
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
       registerFailure(key);
-      return jsonError("Ungueltige Zugangsdaten.", 401);
+      return jsonError("Ungültige Zugangsdaten.", 401);
     }
 
     clearFailures(key);

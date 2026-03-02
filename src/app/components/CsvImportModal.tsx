@@ -312,7 +312,7 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
               </div>
 
               <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-                Tipp: Für BRApool ist es praktisch, wenn deine CSV Spalten wie <span className="font-mono">barcode,kategorie,groesse,status</span> hat.
+                Tipp: Für BRApool ist es praktisch, wenn deine CSV Spalten wie <span className="font-mono">barcode,kategorie,größe,status</span> hat.
               </div>
             </div>
           </div>
