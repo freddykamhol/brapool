@@ -16,6 +16,9 @@ type Waesche = {
   status: WaescheStatus;
 };
 
+const AUSGABE_GRUENDE = ["Praktikum", "Notarzt", "Aushilfe", "Eigene in Wäsche", "Andere"] as const;
+type AusgabeGrund = (typeof AUSGABE_GRUENDE)[number];
+
 function parseBarcodes(text: string): string[] {
   const parts = text
     .split(/[\n,; \t]+/g)
@@ -333,9 +336,14 @@ export default function AusgebenPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [imageUploadLoading, setImageUploadLoading] = useState(false);
+  const [imageUploadStatus, setImageUploadStatus] = useState("");
+  const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [ausgetragenVon, setAusgetragenVon] = useState("");
-  const [ausgegebenAn, setAusgegebenAn] = useState("");
+  const [empfaengerVorname, setEmpfaengerVorname] = useState("");
+  const [empfaengerNachname, setEmpfaengerNachname] = useState("");
+  const [begruendung, setBegruendung] = useState<AusgabeGrund>("Praktikum");
+  const [begruendungAndere, setBegruendungAndere] = useState("");
 
   const [resolved, setResolved] = useState<Map<string, Waesche>>(new Map());
   const [resolveLoading, setResolveLoading] = useState(false);
@@ -346,7 +354,13 @@ export default function AusgebenPage() {
   useEffect(() => {
     barcodeSetRef.current = barcodeSet;
   }, [barcodeSet]);
-  const canSubmit = barcodes.length > 0 && !loading && ausgetragenVon.trim() && ausgegebenAn.trim();
+  const begruendungText = begruendung === "Andere" ? begruendungAndere.trim() : begruendung;
+  const canSubmit =
+    barcodes.length > 0 &&
+    !loading &&
+    empfaengerVorname.trim() &&
+    empfaengerNachname.trim() &&
+    begruendungText;
 
   // Resolve barcodes -> items (Kategori/Größe) by pulling /api/waesche and filtering client-side.
   // For now it keeps things simple without needing a new API file.
@@ -420,8 +434,10 @@ export default function AusgebenPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           barcodes,
-          ausgetragenVon: ausgetragenVon.trim(),
-          ausgegebenAn: ausgegebenAn.trim(),
+          empfaengerVorname: empfaengerVorname.trim(),
+          empfaengerNachname: empfaengerNachname.trim(),
+          begruendung,
+          begruendungAndere: begruendungAndere.trim(),
         }),
       });
 
@@ -446,6 +462,47 @@ export default function AusgebenPage() {
     }
   }
 
+  async function uploadBarcodeImages(files: FileList | null) {
+    const images = Array.from(files ?? []).filter((file) => file.type.startsWith("image/"));
+    if (!images.length || imageUploadLoading) return;
+
+    setImageUploadLoading(true);
+    setImageUploadStatus("Bilder werden gelesen...");
+    try {
+      const scanner = await createHtml5Qrcode("brapool-file-scanner-ausgeben");
+      const found: string[] = [];
+      let failed = 0;
+
+      try {
+        for (const image of images) {
+          try {
+            const decoded = normalizeBarcodeForMatch(await scanner.scanFile(image, false));
+            if (decoded) found.push(decoded);
+          } catch {
+            failed += 1;
+          }
+        }
+      } finally {
+        try {
+          scanner.clear();
+        } catch {
+          // ignore
+        }
+      }
+
+      const uniqueFound = Array.from(new Set(found));
+      if (uniqueFound.length) {
+        setInput((current) => uniqueFound.reduce((next, code) => mergeBarcodeIntoTextarea(next, code), current));
+      }
+
+      const failedText = failed ? `, ${failed} ohne Treffer` : "";
+      setImageUploadStatus(`${uniqueFound.length} Barcode${uniqueFound.length === 1 ? "" : "s"} übernommen${failedText}`);
+    } finally {
+      setImageUploadLoading(false);
+      if (imageUploadInputRef.current) imageUploadInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <div className="col-span-12 lg:col-span-9">
@@ -453,24 +510,52 @@ export default function AusgebenPage() {
           <div className="text-2xl font-semibold">Ausgeben</div>
           <div className="mt-2 text-sm text-zinc-400">Barcodes einfügen/scannen und ausgeben. Status wird auf UMLAUF gesetzt.</div>
 
-          <div className="mt-6 grid grid-cols-12 gap-4">
-            <div className="col-span-12 md:col-span-6 rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-5">
-              <div className="text-sm font-medium mb-2">Ausgabe durch</div>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3 text-sm"
-                value={ausgetragenVon}
-                onChange={(e) => setAusgetragenVon(e.target.value)}
-                placeholder="z.B. Alex Becker"
-              />
-            </div>
-            <div className="col-span-12 md:col-span-6 rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-5">
-              <div className="text-sm font-medium mb-2">Ausgabe an</div>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3 text-sm"
-                value={ausgegebenAn}
-                onChange={(e) => setAusgegebenAn(e.target.value)}
-                placeholder="z.B. Wache 2 / Max Mustermann"
-              />
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
+            <div className="mb-4 text-sm font-semibold">Ausgabe an</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <div className="text-sm font-medium mb-2">Vorname</div>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3 text-sm"
+                  value={empfaengerVorname}
+                  onChange={(e) => setEmpfaengerVorname(e.target.value)}
+                  placeholder="z.B. Max"
+                />
+              </div>
+              <div>
+                <div className="text-sm font-medium mb-2">Nachname</div>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3 text-sm"
+                  value={empfaengerNachname}
+                  onChange={(e) => setEmpfaengerNachname(e.target.value)}
+                  placeholder="z.B. Mustermann"
+                />
+              </div>
+              <div>
+                <div className="text-sm font-medium mb-2">Begründung</div>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3 text-sm"
+                  value={begruendung}
+                  onChange={(e) => setBegruendung(e.target.value as AusgabeGrund)}
+                >
+                  {AUSGABE_GRUENDE.map((grund) => (
+                    <option key={grund} value={grund}>
+                      {grund}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {begruendung === "Andere" && (
+                <div>
+                  <div className="text-sm font-medium mb-2">Andere Begründung</div>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3 text-sm"
+                    value={begruendungAndere}
+                    onChange={(e) => setBegruendungAndere(e.target.value)}
+                    placeholder="Bitte eintragen"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -545,9 +630,30 @@ export default function AusgebenPage() {
               <div className="text-xs text-zinc-400">Automatisch scannen → neue Zeile</div>
             </button>
 
+            <button
+              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
+              onClick={() => imageUploadInputRef.current?.click()}
+              disabled={imageUploadLoading}
+            >
+              <div className="text-sm font-medium">Bild-Upload</div>
+              <div className="text-xs text-zinc-400">
+                {imageUploadLoading ? "Bilder werden gescannt..." : "Barcodes aus Bildern als Bulk übernehmen"}
+              </div>
+            </button>
+            <input
+              ref={imageUploadInputRef}
+              className="hidden"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => void uploadBarcodeImages(e.target.files)}
+            />
+            <div id="brapool-file-scanner-ausgeben" className="hidden" />
+            {imageUploadStatus && <div className="text-xs text-zinc-400">{imageUploadStatus}</div>}
+
             <div className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-4 text-xs text-zinc-400">
               <div className="font-medium text-sm text-zinc-200 mb-1">Pflichtfelder</div>
-              „Ausgabe durch“ und „Ausgabe an“ müssen gesetzt sein.
+              Vorname, Nachname und Begründung müssen gesetzt sein.
             </div>
           </div>
         </div>

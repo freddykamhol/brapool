@@ -50,3 +50,29 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return jsonError("PATCH user fehlgeschlagen", 500, msg || undefined);
   }
 }
+
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getSessionFromRequest(req);
+    if (!session) {
+      return jsonError("Nicht autorisiert.", 401);
+    }
+
+    const { id } = await ctx.params;
+    if (!id) return jsonError("Missing id", 400);
+    if (id === session.uid) return jsonError("Der eigene Benutzer kann nicht gelöscht werden.", 400);
+
+    const userCount = await prisma.user.count();
+    if (userCount <= 1) return jsonError("Der letzte Benutzer kann nicht gelöscht werden.", 400);
+
+    await prisma.user.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: unknown) {
+    const msg = String(e instanceof Error ? e.message : "");
+    if (msg.includes("Record to delete does not exist")) {
+      return jsonError("Benutzer nicht gefunden.", 404);
+    }
+
+    return jsonError("DELETE user fehlgeschlagen", 500, msg || undefined);
+  }
+}

@@ -315,8 +315,7 @@ export default function DashboardPage() {
                 <div className="border-t border-slate-200 pt-2 dark:border-white/10">
                   <div className="mb-1 text-zinc-400">Ausgabe</div>
                   <div className="text-xs text-zinc-300">
-                    <div>Ausgetragen von: {selected.ausgetragenVon ?? "—"}</div>
-                    <div>Ausgegeben an: {selected.ausgegebenAn ?? "—"}</div>
+                    <div>Empfänger: {selected.ausgegebenAn ?? "—"}</div>
                     <div>Datum: {fmtDateTime(selected.ausgabeDatum)}</div>
                   </div>
                 </div>

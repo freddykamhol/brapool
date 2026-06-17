@@ -9,6 +9,7 @@ export type BarcodeScannerInstance = {
   clear(): void;
   pause(shouldPauseVideo?: boolean): Promise<void> | void;
   resume(): Promise<void> | void;
+  scanFile(imageFile: File, showImage?: boolean): Promise<string>;
   getRunningTrackCapabilities?: () => Promise<{ torch?: boolean }>;
   applyVideoConstraints?: (constraints: MediaTrackConstraints) => Promise<void>;
 };

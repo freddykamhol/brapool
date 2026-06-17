@@ -19,6 +19,7 @@ type ApiResult = {
   error?: string;
   messageId?: string;
   users?: UserRow[];
+  session?: { uid: string; userId: string; name: string };
 };
 
 function fmtDateTime(iso: string | null | undefined) {
@@ -38,9 +39,12 @@ export default function BenutzerPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [resetOpen, setResetOpen] = useState(false);
-const [resetBusy, setResetBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -58,6 +62,12 @@ const [resetBusy, setResetBusy] = useState(false);
 
   useEffect(() => {
     reload();
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json: ApiResult) => {
+        if (json?.ok && json.session?.uid) setCurrentUserId(json.session.uid);
+      })
+      .catch(() => null);
     const t = setInterval(reload, 20000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,6 +113,45 @@ const [resetBusy, setResetBusy] = useState(false);
   if (!json?.ok) throw new Error(json?.error ?? `Bearbeiten fehlgeschlagen (Status ${res.status})`);
   await reload();
 }
+
+  function openDeleteModal() {
+    setNotice(null);
+    if (!ensureSelected()) {
+      setNotice("Bitte zuerst einen Benutzer auswählen.");
+      return;
+    }
+    setDeleteOpen(true);
+  }
+
+  async function deleteUser() {
+    if (!selected) return;
+    try {
+      setDeleteBusy(true);
+      const deletedId = selected.id;
+      const res = await fetch(`/api/users/${deletedId}`, { method: "DELETE" });
+      const json: ApiResult | null = await res.json().catch(() => null);
+
+      if (!json?.ok) {
+        const msg = json?.error ?? `Löschen fehlgeschlagen (HTTP ${res.status})`;
+        setNotice(msg);
+        alert(msg);
+        return;
+      }
+
+      const remainingUsers = users.filter((u) => u.id !== deletedId);
+      setUsers(remainingUsers);
+      setSelectedId(remainingUsers[0]?.id ?? null);
+      setNotice("Benutzer wurde gelöscht.");
+      setDeleteOpen(false);
+      await reload();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unbekannter Fehler beim Löschen";
+      setNotice(msg);
+      alert(msg);
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   function openResetModal() {
   setNotice(null);
@@ -186,6 +235,14 @@ async function doResetAndMail() {
               onClick={() => void openResetModal()}
             >
               Neues Passwort + Mail
+            </button>
+
+            <button
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800 hover:bg-red-100 disabled:opacity-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/15"
+              onClick={() => void openDeleteModal()}
+              disabled={!selected || selected.id === currentUserId}
+            >
+              Löschen
             </button>
 
             <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5" onClick={reload}>
@@ -281,10 +338,49 @@ async function doResetAndMail() {
               >
                 Bearbeiten
               </button>
+              <button
+                className="mt-3 w-full rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-red-800 hover:bg-red-100 disabled:opacity-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/15"
+                onClick={() => void openDeleteModal()}
+                disabled={selected.id === currentUserId}
+              >
+                Löschen
+              </button>
             </>
           )}
         </aside>
       </div>
+
+      {deleteOpen && selected && (
+        <ModalShell
+          open={deleteOpen}
+          onClose={() => !deleteBusy && setDeleteOpen(false)}
+          panelClassName="max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur"
+          closeOnBackdrop={!deleteBusy}
+        >
+          <div className="text-lg font-semibold">Benutzer löschen</div>
+          <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+            Soll <span className="font-medium">{selected.vorname} {selected.nachname}</span> wirklich gelöscht werden?
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              className="rounded-xl border border-slate-300 px-4 py-2 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
+              disabled={deleteBusy}
+              onClick={() => setDeleteOpen(false)}
+            >
+              Abbrechen
+            </button>
+
+            <button
+              className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-red-800 hover:bg-red-100 disabled:opacity-50 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/15"
+              disabled={deleteBusy}
+              onClick={() => void deleteUser()}
+            >
+              {deleteBusy ? "Lösche…" : "Löschen"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
 
       {resetOpen && selected && (
   <ModalShell

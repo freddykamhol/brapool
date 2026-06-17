@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { matchIncomingBarcodes, normalizeBarcodeForMatch } from "../../../lib/barcode";
 
+const AUSGABE_GRUENDE = ["Praktikum", "Notarzt", "Aushilfe", "Eigene in Wäsche", "Andere"] as const;
+
 function normalizeBarcodes(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   const set = new Set<string>();
@@ -17,15 +19,25 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
 
   const barcodes = normalizeBarcodes(body?.barcodes);
-  const ausgetragenVon = typeof body?.ausgetragenVon === "string" ? body.ausgetragenVon.trim() : "";
-  const ausgegebenAn = typeof body?.ausgegebenAn === "string" ? body.ausgegebenAn.trim() : "";
+  const empfaengerVorname = typeof body?.empfaengerVorname === "string" ? body.empfaengerVorname.trim() : "";
+  const empfaengerNachname = typeof body?.empfaengerNachname === "string" ? body.empfaengerNachname.trim() : "";
+  const begruendung = typeof body?.begruendung === "string" ? body.begruendung.trim() : "";
+  const begruendungAndere = typeof body?.begruendungAndere === "string" ? body.begruendungAndere.trim() : "";
+  const begruendungText = begruendung === "Andere" ? begruendungAndere : begruendung;
+  const ausgegebenAn = `${empfaengerVorname} ${empfaengerNachname}`.trim();
 
   if (!barcodes.length) {
     return NextResponse.json({ ok: false, error: "Keine Barcodes übergeben." }, { status: 400 });
   }
-  if (!ausgetragenVon || !ausgegebenAn) {
+  if (!empfaengerVorname || !empfaengerNachname) {
     return NextResponse.json(
-      { ok: false, error: "Ausgabe durch und Ausgabe an sind Pflichtfelder." },
+      { ok: false, error: "Vorname und Nachname des Empfängers sind Pflichtfelder." },
+      { status: 400 }
+    );
+  }
+  if (!AUSGABE_GRUENDE.includes(begruendung as (typeof AUSGABE_GRUENDE)[number]) || !begruendungText) {
+    return NextResponse.json(
+      { ok: false, error: "Bitte eine Begründung auswählen oder eintragen." },
       { status: 400 }
     );
   }
@@ -44,8 +56,8 @@ export async function POST(req: Request) {
     where: { barcode: { in: matchedBarcodes } },
     data: {
       status: "UMLAUF",
-      ausgetragenVon,
-      ausgegebenAn,
+      ausgetragenVon: null,
+      ausgegebenAn: `${ausgegebenAn} (${begruendungText})`,
       ausgabeDatum: now,
     },
   });
@@ -65,9 +77,9 @@ export async function POST(req: Request) {
       data: {
         type: "AUSGABE_SUMMARY",
         severity: "ROT",
-        message: `${ausgetragenVon} hat am ${now.toLocaleString("de-DE")} ${parts.join(
+        message: `Am ${now.toLocaleString("de-DE")} wurden ${parts.join(
           ", "
-        )} an ${ausgegebenAn} ausgegeben.`,
+        )} an ${ausgegebenAn} ausgegeben. Begründung: ${begruendungText}.`,
       },
     });
   }

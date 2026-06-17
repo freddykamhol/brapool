@@ -16,6 +16,9 @@ type Waesche = {
   status: WaescheStatus;
 };
 
+const AUSGABE_GRUENDE = ["Praktikum", "Notarzt", "Aushilfe", "Eigene in Wäsche", "Andere"] as const;
+type AusgabeGrund = (typeof AUSGABE_GRUENDE)[number];
+
 function parseBarcodes(text: string): string[] {
   const parts = text
     .split(/[\n,; \t]+/g)
@@ -339,8 +342,10 @@ export default function AusgebenPage() {
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
 
-  const [ausgetragenVon, setAusgetragenVon] = useState("");
-  const [ausgegebenAn, setAusgegebenAn] = useState("");
+  const [empfaengerVorname, setEmpfaengerVorname] = useState("");
+  const [empfaengerNachname, setEmpfaengerNachname] = useState("");
+  const [begruendung, setBegruendung] = useState<AusgabeGrund>("Praktikum");
+  const [begruendungAndere, setBegruendungAndere] = useState("");
 
   const [resolved, setResolved] = useState<Map<string, Waesche>>(new Map());
   const [resolveLoading, setResolveLoading] = useState(false);
@@ -351,7 +356,13 @@ export default function AusgebenPage() {
   useEffect(() => {
     barcodeSetRef.current = barcodeSet;
   }, [barcodeSet]);
-  const canSubmit = barcodes.length > 0 && !loading && ausgetragenVon.trim() && ausgegebenAn.trim();
+  const begruendungText = begruendung === "Andere" ? begruendungAndere.trim() : begruendung;
+  const canSubmit =
+    barcodes.length > 0 &&
+    !loading &&
+    empfaengerVorname.trim() &&
+    empfaengerNachname.trim() &&
+    begruendungText;
 
   useEffect(() => {
     let cancelled = false;
@@ -423,8 +434,10 @@ export default function AusgebenPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           barcodes,
-          ausgetragenVon: ausgetragenVon.trim(),
-          ausgegebenAn: ausgegebenAn.trim(),
+          empfaengerVorname: empfaengerVorname.trim(),
+          empfaengerNachname: empfaengerNachname.trim(),
+          begruendung,
+          begruendungAndere: begruendungAndere.trim(),
         }),
       });
 
@@ -471,24 +484,52 @@ export default function AusgebenPage() {
               void ausgeben();
             }}
           >
-            <div className="grid grid-cols-12 gap-3 sm:gap-4">
-              <div className="col-span-12 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5 md:col-span-6">
-                <label className="mb-2 block text-sm font-medium">Ausgabe durch</label>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3.5 text-sm"
-                  value={ausgetragenVon}
-                  onChange={(e) => setAusgetragenVon(e.target.value)}
-                  placeholder="z.B. Alex Becker"
-                />
-              </div>
-              <div className="col-span-12 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5 md:col-span-6">
-                <label className="mb-2 block text-sm font-medium">Ausgabe an</label>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3.5 text-sm"
-                  value={ausgegebenAn}
-                  onChange={(e) => setAusgegebenAn(e.target.value)}
-                  placeholder="z.B. Wache 2 / Max Mustermann"
-                />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5 sm:p-5">
+              <div className="mb-4 text-sm font-semibold">Ausgabe an</div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Vorname</label>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3.5 text-sm"
+                    value={empfaengerVorname}
+                    onChange={(e) => setEmpfaengerVorname(e.target.value)}
+                    placeholder="z.B. Max"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Nachname</label>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3.5 text-sm"
+                    value={empfaengerNachname}
+                    onChange={(e) => setEmpfaengerNachname(e.target.value)}
+                    placeholder="z.B. Mustermann"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Begründung</label>
+                  <select
+                    className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3.5 text-sm"
+                    value={begruendung}
+                    onChange={(e) => setBegruendung(e.target.value as AusgabeGrund)}
+                  >
+                    {AUSGABE_GRUENDE.map((grund) => (
+                      <option key={grund} value={grund}>
+                        {grund}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {begruendung === "Andere" && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium">Andere Begründung</label>
+                    <input
+                      className="w-full rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 p-3.5 text-sm"
+                      value={begruendungAndere}
+                      onChange={(e) => setBegruendungAndere(e.target.value)}
+                      placeholder="Bitte eintragen"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
