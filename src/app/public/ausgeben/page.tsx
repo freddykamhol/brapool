@@ -341,6 +341,9 @@ export default function AusgebenPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [imageUploadLoading, setImageUploadLoading] = useState(false);
+  const [imageUploadStatus, setImageUploadStatus] = useState("");
+  const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const [empfaengerVorname, setEmpfaengerVorname] = useState("");
   const [empfaengerNachname, setEmpfaengerNachname] = useState("");
@@ -462,19 +465,81 @@ export default function AusgebenPage() {
     }
   }
 
+  async function uploadBarcodeImages(files: FileList | null) {
+    const images = Array.from(files ?? []).filter((file) => file.type.startsWith("image/"));
+    if (!images.length || imageUploadLoading) return;
+
+    setImageUploadLoading(true);
+    setImageUploadStatus("Bilder werden gelesen...");
+    try {
+      const scanner = await createHtml5Qrcode("brapool-file-scanner-public-ausgeben");
+      const found: string[] = [];
+      let failed = 0;
+
+      try {
+        for (const image of images) {
+          try {
+            const decoded = normalizeBarcodeForMatch(await scanner.scanFile(image, false));
+            if (decoded) found.push(decoded);
+          } catch {
+            failed += 1;
+          }
+        }
+      } finally {
+        try {
+          scanner.clear();
+        } catch {
+          // ignore
+        }
+      }
+
+      const uniqueFound = Array.from(new Set(found));
+      if (uniqueFound.length) {
+        setInput((current) => uniqueFound.reduce((next, code) => mergeBarcodeIntoTextarea(next, code), current));
+      }
+
+      const failedText = failed ? `, ${failed} ohne Treffer` : "";
+      setImageUploadStatus(`${uniqueFound.length} Barcode${uniqueFound.length === 1 ? "" : "s"} übernommen${failedText}`);
+    } finally {
+      setImageUploadLoading(false);
+      if (imageUploadInputRef.current) imageUploadInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="grid grid-cols-12 gap-4 md:gap-6">
       <div className="order-1 col-span-12 w-full">
         <section className="space-y-5">
           <div className="text-2xl font-semibold">Ausgeben</div>
           <div className="mt-2 text-sm text-zinc-400">Barcodes einfügen/scannen und ausgeben. Status wird auf UMLAUF gesetzt.</div>
-          <div className="mt-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
-              className="w-full sm:w-auto rounded-xl border border-slate-300 bg-slate-50 dark:border-white/10 dark:bg-white/10 px-4 py-3 text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/15"
+              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-left text-sm font-medium hover:bg-slate-100 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
               onClick={() => setScannerOpen(true)}
             >
-              Kamera-Scanner starten
+              <div>Kamera-Scanner starten</div>
+              <div className="mt-1 text-xs font-normal text-zinc-400">Automatisch scannen → neue Zeile</div>
             </button>
+            <button
+              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-left text-sm font-medium hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
+              onClick={() => imageUploadInputRef.current?.click()}
+              disabled={imageUploadLoading}
+            >
+              <div>Bild-Upload</div>
+              <div className="mt-1 text-xs font-normal text-zinc-400">
+                {imageUploadLoading ? "Bilder werden gescannt..." : "Barcodes aus Bildern als Bulk übernehmen"}
+              </div>
+            </button>
+            <input
+              ref={imageUploadInputRef}
+              className="hidden"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => void uploadBarcodeImages(e.target.files)}
+            />
+            <div id="brapool-file-scanner-public-ausgeben" className="hidden" />
+            {imageUploadStatus && <div className="text-xs text-zinc-400 sm:col-span-2">{imageUploadStatus}</div>}
           </div>
 
           <form
