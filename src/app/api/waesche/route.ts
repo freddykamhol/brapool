@@ -68,30 +68,46 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const rawSystemId = searchParams.get("systemId");
   let systemId = rawSystemId ? Number(rawSystemId) : NaN;
+  let systemIds: number[] = [];
+
+  const body = await req.json().catch(() => null);
+
+  if (body && Array.isArray(body.systemIds)) {
+    systemIds = Array.from(
+      new Set(
+        body.systemIds
+          .map((id: unknown) => (typeof id === "number" ? id : Number(id)))
+          .filter((id: number) => Number.isFinite(id))
+      )
+    );
+  }
 
   if (!Number.isFinite(systemId)) {
-    const body = await req.json().catch(() => null);
     if (body && typeof body.systemId === "number") {
       systemId = body.systemId;
     }
   }
 
-  if (!Number.isFinite(systemId)) {
+  if (!systemIds.length && Number.isFinite(systemId)) {
+    systemIds = [systemId];
+  }
+
+  if (!systemIds.length) {
     return NextResponse.json({ ok: false, error: "systemId fehlt" }, { status: 400 });
   }
 
-  const existing = await prisma.waesche.findUnique({
-    where: { systemId },
+  const existing = await prisma.waesche.findMany({
+    where: { systemId: { in: systemIds } },
     select: { systemId: true, barcode: true, kategorie: true, groesse: true },
   });
 
-  if (!existing) {
+  if (!existing.length) {
     return NextResponse.json({ ok: false, error: "Wäschestück nicht gefunden" }, { status: 404 });
   }
 
   try {
-    await prisma.waesche.delete({
-      where: { systemId },
+    await prisma.waesche.deleteMany({
+      where: { systemId: { in: existing.map((item) => item.systemId) } },
     });
   } catch (error) {
     console.error("[waesche/delete] delete failed", error);
@@ -100,16 +116,16 @@ export async function DELETE(req: Request) {
 
   // Audit logging should never block delete.
   try {
-    await prisma.waescheLog.create({
-      data: {
+    await prisma.waescheLog.createMany({
+      data: existing.map((item) => ({
         type: "MANUELL",
         severity: "INFO",
-        message: `Wäschestück ${existing.kategorie} (${existing.groesse}) [${existing.barcode}] mit System-ID ${existing.systemId} wurde gelöscht.`,
-      },
+        message: `Wäschestück ${item.kategorie} (${item.groesse}) [${item.barcode}] mit System-ID ${item.systemId} wurde gelöscht.`,
+      })),
     });
   } catch (error) {
     console.error("[waesche/delete] log create failed", error);
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, deleted: existing.length });
 }

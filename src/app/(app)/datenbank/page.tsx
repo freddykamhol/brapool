@@ -78,6 +78,9 @@ export default function DatenbankPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<WaescheStatus | "ALLE">("ALLE");
   const [kategorieFilter, setKategorieFilter] = useState<WaescheKategorie | "ALLE">("ALLE");
+  const [selectedBulkIds, setSelectedBulkIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   // Bulk-create (two-step)
   const [bulkPanelOpen, setBulkPanelOpen] = useState(false);
@@ -112,6 +115,13 @@ export default function DatenbankPage() {
       );
     });
   }, [items, search, statusFilter, kategorieFilter]);
+  const selectedBulkCount = selectedBulkIds.length;
+  const filteredIds = useMemo(() => filteredItems.map((item) => item.systemId), [filteredItems]);
+  const filteredSelectedCount = useMemo(
+    () => filteredIds.filter((id) => selectedBulkIds.includes(id)).length,
+    [filteredIds, selectedBulkIds]
+  );
+  const allFilteredSelected = filteredIds.length > 0 && filteredSelectedCount === filteredIds.length;
 
   async function reload() {
     const res = await fetch("/api/waesche", { cache: "no-store" });
@@ -129,6 +139,15 @@ export default function DatenbankPage() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const existingIds = new Set(items.map((item) => item.systemId));
+    setSelectedBulkIds((ids) => ids.filter((id) => existingIds.has(id)));
+  }, [items]);
+
+  useEffect(() => {
+    setConfirmBulkDelete(false);
+  }, [selectedBulkIds]);
 
   function openSingleEdit() {
     if (!selected) {
@@ -150,6 +169,51 @@ export default function DatenbankPage() {
     }
     setCreateBarcodes(bcs);
     setCreateOpen(true);
+  }
+
+  function toggleBulkSelection(systemId: number) {
+    setSelectedBulkIds((ids) =>
+      ids.includes(systemId) ? ids.filter((id) => id !== systemId) : [...ids, systemId]
+    );
+  }
+
+  function toggleAllFiltered() {
+    if (allFilteredSelected) {
+      const visibleIds = new Set(filteredIds);
+      setSelectedBulkIds((ids) => ids.filter((id) => !visibleIds.has(id)));
+      return;
+    }
+
+    setSelectedBulkIds((ids) => Array.from(new Set([...ids, ...filteredIds])));
+  }
+
+  async function deleteSelectedBulk() {
+    if (bulkDeleting || !selectedBulkCount) return;
+    if (!confirmBulkDelete) {
+      setConfirmBulkDelete(true);
+      return;
+    }
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch("/api/waesche", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ systemIds: selectedBulkIds }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!json?.ok) {
+        alert(json?.error ?? `Löschen fehlgeschlagen (HTTP ${res.status})`);
+        return;
+      }
+
+      setSelectedBulkIds([]);
+      setConfirmBulkDelete(false);
+      await reload();
+    } finally {
+      setBulkDeleting(false);
+    }
   }
 
   return (
@@ -311,13 +375,55 @@ export default function DatenbankPage() {
         <section className="col-span-12 lg:col-span-9 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 px-5 py-4">
             <div className="text-lg font-semibold">Wäsche</div>
-            <div className="text-sm text-zinc-400">{filteredItems.length} Einträge</div>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {selectedBulkCount > 0 && (
+                <>
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {selectedBulkCount} ausgewählt
+                  </div>
+                  <button
+                    className={[
+                      "rounded-xl border px-3 py-1.5 text-sm disabled:opacity-50",
+                      confirmBulkDelete
+                        ? "border-red-500 bg-red-600 text-white hover:bg-red-700 dark:border-red-400 dark:bg-red-500 dark:hover:bg-red-600"
+                        : "border-red-300 text-red-700 hover:bg-red-50 dark:border-red-500/40 dark:text-red-200 dark:hover:bg-red-500/10",
+                    ].join(" ")}
+                    onClick={deleteSelectedBulk}
+                    disabled={bulkDeleting}
+                  >
+                    {bulkDeleting
+                      ? "Löschen..."
+                      : confirmBulkDelete
+                        ? `${selectedBulkCount} wirklich löschen?`
+                        : "Auswahl löschen"}
+                  </button>
+                  <button
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
+                    onClick={() => setSelectedBulkIds([])}
+                    disabled={bulkDeleting}
+                  >
+                    Auswahl aufheben
+                  </button>
+                </>
+              )}
+              <div className="text-sm text-zinc-400">{filteredItems.length} Einträge</div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-slate-200 dark:border-white/10 text-zinc-300">
                 <tr>
+                  <th className="w-12 px-5 py-3 text-left font-medium">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-slate-700 dark:accent-slate-200"
+                      checked={allFilteredSelected}
+                      onChange={toggleAllFiltered}
+                      disabled={!filteredItems.length}
+                      aria-label="Alle sichtbaren Wäschestücke auswählen"
+                    />
+                  </th>
                   <th className="px-5 py-3 text-left font-medium">Kategorie</th>
                   <th className="px-5 py-3 text-left font-medium">Größe</th>
                   <th className="px-5 py-3 text-left font-medium">Barcode</th>
@@ -328,15 +434,27 @@ export default function DatenbankPage() {
               <tbody>
                 {filteredItems.map((it) => {
                   const active = it.systemId === selectedId;
+                  const bulkSelected = selectedBulkIds.includes(it.systemId);
                   return (
                     <tr
                       key={it.systemId}
                       className={[
                         "cursor-pointer border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5",
                         active ? "bg-slate-100 dark:bg-white/10" : "",
+                        bulkSelected ? "outline outline-1 -outline-offset-1 outline-slate-300 dark:outline-white/20" : "",
                       ].join(" ")}
                       onClick={() => setSelectedId(it.systemId)}
                     >
+                      <td className="px-5 py-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-slate-700 dark:accent-slate-200"
+                          checked={bulkSelected}
+                          onChange={() => toggleBulkSelection(it.systemId)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`Wäschestück ${it.barcode} auswählen`}
+                        />
+                      </td>
                       <td className="px-5 py-3">{it.kategorie}</td>
                       <td className="px-5 py-3">{it.groesse}</td>
                       <td className="px-5 py-3 font-mono text-xs">{it.barcode}</td>
@@ -364,7 +482,7 @@ export default function DatenbankPage() {
                 })}
                 {!filteredItems.length && (
                   <tr>
-                    <td className="px-5 py-6 text-zinc-400" colSpan={5}>
+                    <td className="px-5 py-6 text-zinc-400" colSpan={6}>
                       Noch keine Einträge vorhanden.
                     </td>
                   </tr>
