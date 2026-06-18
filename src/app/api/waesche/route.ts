@@ -106,8 +106,17 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    await prisma.waesche.deleteMany({
-      where: { systemId: { in: existing.map((item) => item.systemId) } },
+    await prisma.$transaction(async (tx) => {
+      const existingSystemIds = existing.map((item) => item.systemId);
+
+      await tx.waescheLog.updateMany({
+        where: { waescheSystemId: { in: existingSystemIds } },
+        data: { waescheSystemId: null },
+      });
+
+      await tx.waesche.deleteMany({
+        where: { systemId: { in: existingSystemIds } },
+      });
     });
   } catch (error) {
     console.error("[waesche/delete] delete failed", error);

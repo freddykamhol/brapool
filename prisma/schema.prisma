@@ -64,7 +64,7 @@ model WaescheLog {
   message            String
 
   waescheSystemId    Int?
-  waesche            Waesche? @relation(fields: [waescheSystemId], references: [systemId])
+  waesche            Waesche? @relation(fields: [waescheSystemId], references: [systemId], onDelete: SetNull)
 
   createdAt          DateTime @default(now())
 
