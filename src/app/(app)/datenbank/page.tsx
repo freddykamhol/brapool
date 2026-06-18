@@ -129,25 +129,24 @@ export default function DatenbankPage() {
     if (json?.ok && Array.isArray(json.items)) {
       setItems(json.items);
       if (selectedId === null && json.items.length) setSelectedId(json.items[0].systemId);
+      const existingIds = new Set(json.items.map((item: Waesche) => item.systemId));
+      setSelectedBulkIds((ids) => ids.filter((id) => existingIds.has(id)));
+      setConfirmBulkDelete(false);
     }
   }
 
   useEffect(() => {
-    reload();
+    const initialReload = window.setTimeout(() => {
+      void reload();
+    }, 0);
     // optional: refresh alle 15s
     const t = setInterval(reload, 15000);
-    return () => clearInterval(t);
+    return () => {
+      window.clearTimeout(initialReload);
+      clearInterval(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const existingIds = new Set(items.map((item) => item.systemId));
-    setSelectedBulkIds((ids) => ids.filter((id) => existingIds.has(id)));
-  }, [items]);
-
-  useEffect(() => {
-    setConfirmBulkDelete(false);
-  }, [selectedBulkIds]);
 
   function openSingleEdit() {
     if (!selected) {
@@ -172,12 +171,14 @@ export default function DatenbankPage() {
   }
 
   function toggleBulkSelection(systemId: number) {
+    setConfirmBulkDelete(false);
     setSelectedBulkIds((ids) =>
       ids.includes(systemId) ? ids.filter((id) => id !== systemId) : [...ids, systemId]
     );
   }
 
   function toggleAllFiltered() {
+    setConfirmBulkDelete(false);
     if (allFilteredSelected) {
       const visibleIds = new Set(filteredIds);
       setSelectedBulkIds((ids) => ids.filter((id) => !visibleIds.has(id)));
@@ -399,7 +400,10 @@ export default function DatenbankPage() {
                   </button>
                   <button
                     className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-white/10 dark:hover:bg-white/5"
-                    onClick={() => setSelectedBulkIds([])}
+                    onClick={() => {
+                      setConfirmBulkDelete(false);
+                      setSelectedBulkIds([]);
+                    }}
                     disabled={bulkDeleting}
                   >
                     Auswahl aufheben
@@ -570,8 +574,9 @@ export default function DatenbankPage() {
         </aside>
       </div>
 
-      {selected && (
+      {editOpen && selected && (
         <WaescheEditModal
+          key={selected.systemId}
           open={editOpen}
           item={selected}
           onClose={() => setEditOpen(false)}
@@ -579,45 +584,49 @@ export default function DatenbankPage() {
         />
       )}
 
-      <EinlagernNeuModal
-        open={createOpen}
-        barcodes={createBarcodes}
-        onClose={() => setCreateOpen(false)}
-        onCreated={() => {
-          setBulkText("");
-          setBulkPanelOpen(false);
-          setCreateBarcodes([]);
-          reload();
-        }}
-      />
+      {createOpen && (
+        <EinlagernNeuModal
+          open={createOpen}
+          barcodes={createBarcodes}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => {
+            setBulkText("");
+            setBulkPanelOpen(false);
+            setCreateBarcodes([]);
+            reload();
+          }}
+        />
+      )}
 
-      <CsvImportModal
-        open={csvOpen}
-        onClose={() => setCsvOpen(false)}
-        onConfirmImport={async (rows) => {
-          const parsed = parseWaescheCsvRows(rows);
-          if (!parsed.items.length) {
-            alert(parsed.errors[0] ?? "Keine importierbaren Zeilen gefunden.");
-            return;
-          }
+      {csvOpen && (
+        <CsvImportModal
+          open={csvOpen}
+          onClose={() => setCsvOpen(false)}
+          onConfirmImport={async (rows) => {
+            const parsed = parseWaescheCsvRows(rows);
+            if (!parsed.items.length) {
+              alert(parsed.errors[0] ?? "Keine importierbaren Zeilen gefunden.");
+              return;
+            }
 
-          const res = await fetch("/api/waesche/neu-bulk", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items: parsed.items }),
-          });
-          const json = await res.json().catch(() => null);
-          if (!json?.ok) {
-            alert(json?.error ?? "CSV-Import fehlgeschlagen");
-            return;
-          }
+            const res = await fetch("/api/waesche/neu-bulk", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items: parsed.items }),
+            });
+            const json = await res.json().catch(() => null);
+            if (!json?.ok) {
+              alert(json?.error ?? "CSV-Import fehlgeschlagen");
+              return;
+            }
 
-          const created = Array.isArray(json.createdRows) ? json.createdRows.length : 0;
-          const skipped = typeof json.skippedExisting === "number" ? json.skippedExisting : 0;
-          alert(`CSV importiert: ${created} neu angelegt${skipped ? `, ${skipped} übersprungen` : ""}.`);
-          await reload();
-        }}
-      />
+            const created = Array.isArray(json.createdRows) ? json.createdRows.length : 0;
+            const skipped = typeof json.skippedExisting === "number" ? json.skippedExisting : 0;
+            alert(`CSV importiert: ${created} neu angelegt${skipped ? `, ${skipped} übersprungen` : ""}.`);
+            await reload();
+          }}
+        />
+      )}
 
       <MonthlyReportModal
         open={monthlyReportOpen}

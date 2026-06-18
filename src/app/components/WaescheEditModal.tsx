@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import ModalShell from "@/app/components/ModalShell";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
@@ -40,20 +40,6 @@ export default function WaescheEditModal(props: {
 
   const [ausgetragenVon, setAusgetragenVon] = useState(item.ausgetragenVon ?? "");
   const [ausgegebenAn, setAusgegebenAn] = useState(item.ausgegebenAn ?? "");
-
-  useEffect(() => {
-    if (!open) return;
-    setKategorie(item.kategorie);
-    setGroesse(item.groesse);
-    setBarcode(item.barcode);
-    setCws(item.cws);
-    setStatus(item.status);
-    setBemerkung(item.bemerkung ?? "");
-    setAusgetragenVon(item.ausgetragenVon ?? "");
-    setAusgegebenAn(item.ausgegebenAn ?? "");
-    setDeleting(false);
-    setConfirmDelete(false);
-  }, [open, item]);
 
   const canSave = useMemo(() => {
     if (!barcode.trim()) return false;

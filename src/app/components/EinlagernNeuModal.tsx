@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import ModalShell from "@/app/components/ModalShell";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
@@ -27,15 +27,6 @@ export default function EinlagernNeuModal(props: {
   const [bulkKategorie, setBulkKategorie] = useState<WaescheKategorie | "">("");
   const [bulkGroesse, setBulkGroesse] = useState("");
   const [saving, setSaving] = useState(false);
-
-  // reset when reopened or new missing-barcode set arrives
-  useEffect(() => {
-    if (!open) return;
-    setRows(barcodes.map((b) => ({ barcode: b, selected: true, kategorie: "", groesse: "" })));
-    setBulkKategorie("");
-    setBulkGroesse("");
-    setSaving(false);
-  }, [open, barcodes]);
 
   const allSelected = rows.length > 0 && rows.every((r) => r.selected);
 

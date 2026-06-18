@@ -61,7 +61,9 @@ export default function BenutzerPage() {
   }
 
   useEffect(() => {
-    reload();
+    const initialReload = window.setTimeout(() => {
+      void reload();
+    }, 0);
     fetch("/api/auth/me", { cache: "no-store" })
       .then((res) => res.json())
       .then((json: ApiResult) => {
@@ -69,7 +71,10 @@ export default function BenutzerPage() {
       })
       .catch(() => null);
     const t = setInterval(reload, 20000);
-    return () => clearInterval(t);
+    return () => {
+      window.clearTimeout(initialReload);
+      clearInterval(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -414,10 +419,13 @@ async function doResetAndMail() {
   </ModalShell>
 )}
 
-      <UserCreateModal open={createOpen} onClose={() => setCreateOpen(false)} onSubmit={createUser} />
+      {createOpen && (
+        <UserCreateModal open={createOpen} onClose={() => setCreateOpen(false)} onSubmit={createUser} />
+      )}
 
-      {selected && (
+      {editOpen && selected && (
         <UserEditModal
+          key={selected.id}
           open={editOpen}
           user={selected}
           onClose={() => setEditOpen(false)}

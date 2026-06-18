@@ -473,16 +473,18 @@ export default function EinlagernPage() {
             </div>
           </div>
 
-          <EinlagernNeuModal
-            open={modalOpen}
-            barcodes={missing}
-            onClose={() => setModalOpen(false)}
-            onCreated={() => {
-              setInput("");
-              alert(`Neu angelegt & eingelagert: ${missing.length}`);
-              setMissing([]);
-            }}
-          />
+          {modalOpen && (
+            <EinlagernNeuModal
+              open={modalOpen}
+              barcodes={missing}
+              onClose={() => setModalOpen(false)}
+              onCreated={() => {
+                setInput("");
+                alert(`Neu angelegt & eingelagert: ${missing.length}`);
+                setMissing([]);
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -541,32 +543,34 @@ export default function EinlagernPage() {
         }}
       />
 
-      <CsvImportModal
-  open={csvOpen}
-  onClose={() => setCsvOpen(false)}
-  onConfirmImport={async (rows) => {
-    const parsed = parseWaescheCsvRows(rows);
-    if (!parsed.items.length) {
-      alert(parsed.errors[0] ?? "Keine importierbaren Zeilen gefunden.");
-      return;
-    }
+      {csvOpen && (
+        <CsvImportModal
+          open={csvOpen}
+          onClose={() => setCsvOpen(false)}
+          onConfirmImport={async (rows) => {
+            const parsed = parseWaescheCsvRows(rows);
+            if (!parsed.items.length) {
+              alert(parsed.errors[0] ?? "Keine importierbaren Zeilen gefunden.");
+              return;
+            }
 
-    const res = await fetch("/api/waesche/neu-bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: parsed.items }),
-    });
-    const json = await res.json().catch(() => null);
-    if (!json?.ok) {
-      alert(json?.error ?? "CSV-Import fehlgeschlagen");
-      return;
-    }
+            const res = await fetch("/api/waesche/neu-bulk", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items: parsed.items }),
+            });
+            const json = await res.json().catch(() => null);
+            if (!json?.ok) {
+              alert(json?.error ?? "CSV-Import fehlgeschlagen");
+              return;
+            }
 
-    const created = Array.isArray(json.createdRows) ? json.createdRows.length : 0;
-    const skipped = typeof json.skippedExisting === "number" ? json.skippedExisting : 0;
-    alert(`CSV importiert: ${created} neu angelegt${skipped ? `, ${skipped} übersprungen` : ""}.`);
-  }}
-/>
+            const created = Array.isArray(json.createdRows) ? json.createdRows.length : 0;
+            const skipped = typeof json.skippedExisting === "number" ? json.skippedExisting : 0;
+            alert(`CSV importiert: ${created} neu angelegt${skipped ? `, ${skipped} übersprungen` : ""}.`);
+          }}
+        />
+      )}
     </div>
   );
 }

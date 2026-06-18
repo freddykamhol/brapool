@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import ModalShell from "@/app/components/ModalShell";
 
 type CsvRow = Record<string, string>;
@@ -130,16 +130,6 @@ export default function CsvImportModal({ open, onClose, onConfirmImport }: Props
   const [importing, setImporting] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setDragOver(false);
-    setFileName("");
-    setRawText("");
-    setDelimiter(",");
-    setError("");
-    setImporting(false);
-  }, [open]);
 
   const parsed = useMemo(() => {
     if (!rawText.trim()) return { headers: [], rows: [] as CsvRow[] };

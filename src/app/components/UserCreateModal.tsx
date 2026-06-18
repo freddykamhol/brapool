@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import ModalShell from "@/app/components/ModalShell";
 
 export type UserCreateInput = {
@@ -27,24 +27,12 @@ export default function UserCreateModal(props: {
   const [vorname, setVorname] = useState("");
   const [nachname, setNachname] = useState("");
   const [email, setEmail] = useState("");
-  const [userId, setUserId] = useState("");
+  const [customUserId, setCustomUserId] = useState("");
   const [userIdEdited, setUserIdEdited] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setVorname("");
-    setNachname("");
-    setEmail("");
-    setUserId("");
-    setUserIdEdited(false);
-    setSaving(false);
-  }, [open]);
-
-  useEffect(() => {
-    if (userIdEdited) return;
-    setUserId(generateUserId(vorname, nachname));
-  }, [vorname, nachname, userIdEdited]);
+  const generatedUserId = useMemo(() => generateUserId(vorname, nachname), [vorname, nachname]);
+  const userId = userIdEdited ? customUserId : generatedUserId;
 
   const canSave = useMemo(() => {
     return !!(vorname.trim() && nachname.trim() && email.trim() && userId.trim());
@@ -113,7 +101,7 @@ export default function UserCreateModal(props: {
               value={userId}
               onChange={(e) => {
                 setUserIdEdited(true);
-                setUserId(e.target.value);
+                setCustomUserId(e.target.value);
               }}
               placeholder="z.B. m.mustermann"
             />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import ModalShell from "@/app/components/ModalShell";
 
 export type UserEditInput = {
@@ -31,15 +31,6 @@ export default function UserEditModal(props: {
   const [email, setEmail] = useState(user.email);
   const [userId, setUserId] = useState(user.userId);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setVorname(user.vorname);
-    setNachname(user.nachname);
-    setEmail(user.email);
-    setUserId(user.userId);
-    setSaving(false);
-  }, [open, user]);
 
   const canSave = useMemo(() => {
     return !!(vorname.trim() && nachname.trim() && email.trim() && userId.trim());

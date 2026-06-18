@@ -117,14 +117,11 @@ export default function DashboardPage() {
   }, [items]);
 
   const tablePages = Math.max(1, Math.ceil(items.length / TABLE_PAGE_SIZE));
+  const currentTablePage = Math.min(tablePage, tablePages);
   const tableRows = useMemo(() => {
-    const start = (tablePage - 1) * TABLE_PAGE_SIZE;
+    const start = (currentTablePage - 1) * TABLE_PAGE_SIZE;
     return items.slice(start, start + TABLE_PAGE_SIZE);
-  }, [items, tablePage]);
-
-  useEffect(() => {
-    if (tablePage > tablePages) setTablePage(tablePages);
-  }, [tablePage, tablePages]);
+  }, [items, currentTablePage]);
 
   async function reloadItems() {
     const wRes = await fetch("/api/waesche", { cache: "no-store" });
@@ -155,7 +152,10 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    reloadAll(1);
+    const initialReload = window.setTimeout(() => {
+      void reloadAll(1);
+    }, 0);
+    return () => window.clearTimeout(initialReload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -260,19 +260,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3 text-sm dark:border-white/10">
-            <div className="text-zinc-400">Seite {tablePage} / {tablePages}</div>
+            <div className="text-zinc-400">Seite {currentTablePage} / {tablePages}</div>
             <div className="flex gap-2">
               <button
                 className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
                 onClick={() => setTablePage((p) => Math.max(1, p - 1))}
-                disabled={tablePage <= 1}
+                disabled={currentTablePage <= 1}
               >
                 Zurück
               </button>
               <button
                 className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:hover:bg-white/5"
                 onClick={() => setTablePage((p) => Math.min(tablePages, p + 1))}
-                disabled={tablePage >= tablePages}
+                disabled={currentTablePage >= tablePages}
               >
                 Weiter
               </button>
@@ -394,8 +394,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {selected && (
+      {editOpen && selected && (
         <WaescheEditModal
+          key={selected.systemId}
           open={editOpen}
           item={selected}
           onClose={() => setEditOpen(false)}
