@@ -10,18 +10,29 @@ type Row = {
   selected: boolean;
   kategorie: WaescheKategorie | "";
   groesse: string;
+  cws: boolean;
+  bemerkung: string;
 };
+
+export type CreatedWaescheRow = { systemId: number; barcode: string };
 
 export default function EinlagernNeuModal(props: {
   open: boolean;
   barcodes: string[];
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (createdRows?: CreatedWaescheRow[]) => void;
 }) {
   const { open, barcodes, onClose, onCreated } = props;
 
   const [rows, setRows] = useState<Row[]>(
-    barcodes.map((b) => ({ barcode: b, selected: true, kategorie: "", groesse: "" }))
+    barcodes.map((b) => ({
+      barcode: b,
+      selected: true,
+      kategorie: "",
+      groesse: "",
+      cws: false,
+      bemerkung: "",
+    }))
   );
 
   const [bulkKategorie, setBulkKategorie] = useState<WaescheKategorie | "">("");
@@ -61,7 +72,13 @@ export default function EinlagernNeuModal(props: {
 
     const payload = rows
       .filter((r) => r.selected)
-      .map((r) => ({ barcode: r.barcode, kategorie: r.kategorie as WaescheKategorie, groesse: r.groesse.trim() }));
+      .map((r) => ({
+        barcode: r.barcode,
+        kategorie: r.kategorie as WaescheKategorie,
+        groesse: r.groesse.trim(),
+        cws: r.cws,
+        bemerkung: r.bemerkung.trim(),
+      }));
 
     setSaving(true);
     try {
@@ -77,7 +94,7 @@ export default function EinlagernNeuModal(props: {
         return;
       }
 
-      onCreated();
+      onCreated(Array.isArray(json.createdRows) ? json.createdRows : []);
       onClose();
     } finally {
       setSaving(false);
@@ -157,8 +174,10 @@ export default function EinlagernNeuModal(props: {
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
           <div className="grid grid-cols-12 gap-0 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
             <div className="col-span-1">✓</div>
-            <div className="col-span-5">Barcode</div>
-            <div className="col-span-3">Kategorie</div>
+            <div className="col-span-3">Barcode</div>
+            <div className="col-span-2">Kategorie</div>
+            <div className="col-span-1">CWS</div>
+            <div className="col-span-2">Bemerkung</div>
             <div className="col-span-3">Größe</div>
           </div>
 
@@ -175,9 +194,9 @@ export default function EinlagernNeuModal(props: {
                   />
                 </div>
 
-                <div className="col-span-5 flex items-center font-mono text-xs">{r.barcode}</div>
+                <div className="col-span-3 flex items-center break-all pr-2 font-mono text-xs">{r.barcode}</div>
 
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <select
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
                     value={r.kategorie}
@@ -197,6 +216,30 @@ export default function EinlagernNeuModal(props: {
                     <option value="SOFTSHELLJACKE">Softshelljacke</option>
                     <option value="HARDSHELLJACKE">Hardshelljacke</option>
                   </select>
+                </div>
+
+                <div className="col-span-1 flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={r.cws}
+                    onChange={(e) =>
+                      setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, cws: e.target.checked } : x)))
+                    }
+                    disabled={!r.selected}
+                    aria-label={`CWS für ${r.barcode}`}
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <input
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
+                    value={r.bemerkung}
+                    onChange={(e) =>
+                      setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, bemerkung: e.target.value } : x)))
+                    }
+                    disabled={!r.selected}
+                    placeholder="Optional"
+                  />
                 </div>
 
                 <div className="col-span-3">

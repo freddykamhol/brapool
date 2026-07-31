@@ -25,11 +25,13 @@ export const config = {
     "/dashboard/:path*",
     "/einlagern/:path*",
     "/ausgeben/:path*",
+    "/inventur/:path*",
     "/datenbank/:path*",
     "/benutzer/:path*",
     "/passwort/:path*",
     "/api/users/:path*",
     "/api/logs/:path*",
+    "/api/waesche/inventur",
     "/api/auth/change-password",
   ],
 };

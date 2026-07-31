@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import ModalShell from "@/app/components/ModalShell";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
-type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
+type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "UNKLAR" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
 
 export type Waesche = {
   systemId: number;
@@ -150,6 +150,7 @@ export default function WaescheEditModal(props: {
             >
               <option value="EINGELAGERT">Eingelagert</option>
               <option value="UMLAUF">Umlauf</option>
+              <option value="UNKLAR">Unklar</option>
               <option value="DEFEKT_REPARATUR">Defekt / Reparatur</option>
               <option value="DEFEKT_ENTSORGT">Defekt / Entsorgt</option>
             </select>

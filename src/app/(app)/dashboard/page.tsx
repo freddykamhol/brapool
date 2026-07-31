@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import WaescheEditModal from "@/app/components/WaescheEditModal";
 
-type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
+type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "UNKLAR" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
 type LogSeverity = "ROT" | "GELB" | "GRUEN" | "INFO";
 
 type WaescheLog = {
@@ -41,6 +41,8 @@ function statusBadgeClasses(s: WaescheStatus) {
       return "border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-green-500/40 dark:bg-green-500/15 dark:text-green-200";
     case "UMLAUF":
       return "border border-amber-300 bg-amber-50 text-amber-800 dark:border-yellow-500/40 dark:bg-yellow-500/15 dark:text-yellow-200";
+    case "UNKLAR":
+      return "border border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-500/40 dark:bg-orange-500/15 dark:text-orange-200";
     case "DEFEKT_REPARATUR":
       return "border border-red-300 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-200";
     case "DEFEKT_ENTSORGT":
@@ -69,6 +71,8 @@ function statusLabel(s: WaescheStatus) {
       return "Eingelagert";
     case "UMLAUF":
       return "Umlauf";
+    case "UNKLAR":
+      return "Unklar";
     case "DEFEKT_REPARATUR":
       return "Defekt / Reparatur";
     case "DEFEKT_ENTSORGT":

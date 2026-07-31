@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { normalizeBarcodeForMatch } from "../../../lib/barcode";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
-type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
+type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "UNKLAR" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
 
 type NewItem = {
   barcode: string;
   kategorie: WaescheKategorie;
   groesse: string;
   cws: boolean;
+  bemerkung: string;
 };
 
 type IncomingItem = Partial<NewItem> & { [key: string]: unknown };
@@ -43,12 +45,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const items: IncomingItem[] = Array.isArray(body?.items) ? body.items : [];
 
-  const mapped: Array<{ barcode: string; kategorie: unknown; groesse: string; cws: boolean }> = items
+  const mapped: Array<{ barcode: string; kategorie: unknown; groesse: string; cws: boolean; bemerkung: string }> = items
     .map((x: IncomingItem) => ({
       barcode: norm(x?.barcode),
       kategorie: x?.kategorie,
       groesse: norm(x?.groesse),
       cws: Boolean(x?.cws),
+      bemerkung: norm(x?.bemerkung),
     }));
 
   const cleaned: NewItem[] = mapped
@@ -61,7 +64,7 @@ export async function POST(req: Request) {
 
   // Duplikate im Request entfernen
   const map = new Map<string, NewItem>();
-  for (const it of cleaned) map.set(it.barcode, it);
+  for (const it of cleaned) map.set(normalizeBarcodeForMatch(it.barcode), it);
   const unique = Array.from(map.values());
 
   const now = new Date();
@@ -69,12 +72,9 @@ export async function POST(req: Request) {
   try {
     const created = await prisma.$transaction(async (tx) => {
       // Prüfen: welche existieren schon?
-      const existing = await tx.waesche.findMany({
-        where: { barcode: { in: unique.map((u) => u.barcode) } },
-        select: { barcode: true },
-      });
-      const existsSet = new Set(existing.map((e) => e.barcode));
-      const toCreate = unique.filter((u) => !existsSet.has(u.barcode));
+      const existing = await tx.waesche.findMany({ select: { barcode: true } });
+      const existsSet = new Set(existing.map((e) => normalizeBarcodeForMatch(e.barcode)));
+      const toCreate = unique.filter((u) => !existsSet.has(normalizeBarcodeForMatch(u.barcode)));
 
       let currentId = await nextSystemId(tx);
 
@@ -90,6 +90,7 @@ export async function POST(req: Request) {
             cws: Boolean(it.cws),
             status: "EINGELAGERT" as WaescheStatus,
             eingelagertAm: now,
+            bemerkung: it.bemerkung || null,
           },
           select: { systemId: true, barcode: true },
         });

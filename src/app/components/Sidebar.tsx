@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   KeyRound,
   LogOut,
+  ClipboardCheck,
 } from "lucide-react";
 
 type NavItem = {
@@ -26,6 +27,7 @@ const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, description: "Übersicht & Hinweise" },
   { label: "Einlagern", href: "/einlagern", icon: PackagePlus, description: "In Bestand aufnehmen" },
   { label: "Ausgeben", href: "/ausgeben", icon: ArrowRightLeft, description: "Umlauf / Übergabe" },
+  { label: "Inventur", href: "/inventur", icon: ClipboardCheck, description: "Bestand vollständig prüfen" },
   { label: "Datenbank", href: "/datenbank", icon: Database, description: "Alle Einträge" },
   { label: "Benutzer", href: "/benutzer", icon: Users, description: "Accounts & Rollen" },
   { label: "Passwort", href: "/passwort", icon: KeyRound, description: "Eigenes Passwort" },

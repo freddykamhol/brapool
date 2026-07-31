@@ -1,0 +1,2 @@
+-- SQLite stores Prisma enums as text; no table rebuild is required.
+-- The schema update makes UNKLAR and INVENTUR_SUMMARY available to Prisma.

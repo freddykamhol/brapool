@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRightLeft, Database, LayoutDashboard, PackagePlus, Users } from "lucide-react";
+import { ArrowRightLeft, ClipboardCheck, Database, LayoutDashboard, PackagePlus } from "lucide-react";
 
 type NavItem = {
   label: string;
@@ -16,7 +16,7 @@ const NAV: NavItem[] = [
   { label: "Ausgeben", href: "/ausgeben", icon: ArrowRightLeft },
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, center: true },
   { label: "Datenbank", href: "/datenbank", icon: Database },
-  { label: "Benutzer", href: "/benutzer", icon: Users },
+  { label: "Inventur", href: "/inventur", icon: ClipboardCheck },
 ];
 
 function cx(...classes: Array<string | false | null | undefined>) {

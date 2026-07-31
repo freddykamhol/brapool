@@ -6,7 +6,7 @@ import { createHtml5Qrcode, playScanBeep, type BarcodeScannerInstance } from "@/
 import { matchIncomingBarcodes, normalizeBarcodeForMatch } from "@/app/lib/barcode";
 
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
-type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
+type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "UNKLAR" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
 
 type Waesche = {
   systemId: number;

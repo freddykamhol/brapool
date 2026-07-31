@@ -7,7 +7,7 @@ import CsvImportModal from "@/app/components/CsvImportModal";
 import MonthlyReportModal from "@/app/components/MonthlyReportModal";
 import { parseWaescheCsvRows } from "@/app/lib/waesche-csv";
 
-type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
+type WaescheStatus = "EINGELAGERT" | "UMLAUF" | "UNKLAR" | "DEFEKT_REPARATUR" | "DEFEKT_ENTSORGT";
 type WaescheKategorie = "HOSE" | "POLO" | "SWEATJACKE" | "SOFTSHELLJACKE" | "HARDSHELLJACKE";
 
 type Waesche = {
@@ -41,6 +41,8 @@ function statusLabel(s: WaescheStatus) {
       return "Eingelagert";
     case "UMLAUF":
       return "Umlauf";
+    case "UNKLAR":
+      return "Unklar";
     case "DEFEKT_REPARATUR":
       return "Defekt / Reparatur";
     case "DEFEKT_ENTSORGT":
@@ -54,6 +56,8 @@ function statusBadgeClass(s: WaescheStatus) {
       return "border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-200";
     case "UMLAUF":
       return "border border-amber-300 bg-amber-50 text-amber-800 dark:border-yellow-500/40 dark:bg-yellow-500/10 dark:text-yellow-100";
+    case "UNKLAR":
+      return "border border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-100";
     case "DEFEKT_REPARATUR":
       return "border border-red-300 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200";
     case "DEFEKT_ENTSORGT":
@@ -335,6 +339,7 @@ export default function DatenbankPage() {
                 <option value="ALLE">Alle</option>
                 <option value="EINGELAGERT">Eingelagert</option>
                 <option value="UMLAUF">Umlauf</option>
+                <option value="UNKLAR">Unklar</option>
                 <option value="DEFEKT_REPARATUR">Defekt / Reparatur</option>
                 <option value="DEFEKT_ENTSORGT">Defekt / Entsorgt</option>
               </select>
